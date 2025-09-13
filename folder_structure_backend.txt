@@ -1,0 +1,71 @@
+C:\Users\Guest User\Downloads\Dome\Dome - Web Booking Platform\Dome-booking-backend\
+¦   .env
+¦   .env.example
+¦   .gitignore
+¦   create-test-data.js
+¦   folder_structure.txt
+¦   package-lock.json
+¦   package.json
+¦   README.md.txt
+¦   server.js
+¦   test-routes.js
+¦   
++---docs
+¦       api.yaml.txt
+¦       
++---logs
+¦       combined.log
+¦       error.log
+¦       
++---node_modules
+¦   ¦   .package-lock.json
+¦   ¦   
+¦   +---src
+¦   ¦   app.js
+¦   ¦   
+¦   +---config
+¦   ¦       database.js
+¦   ¦       environment.js
+¦   ¦       stripe.js
+¦   ¦       
+¦   +---controllers
+¦   ¦       availabilityController.js
+¦   ¦       bookingController.js
+¦   ¦       discountController.js
+¦   ¦       paymentController.js
+¦   ¦       
+¦   +---middleware
+¦   ¦       auth.js.txt
+¦   ¦       errorHandler.js
+¦   ¦       rateLimiter.js
+¦   ¦       validation.js
+¦   ¦       
+¦   +---models
+¦   ¦       Booking.js
+¦   ¦       Discount.js
+¦   ¦       Facility.js
+¦   ¦       index.js
+¦   ¦       TimeSlot.js.txt
+¦   ¦       
+¦   +---routes
+¦   ¦       availability.js
+¦   ¦       booking.js
+¦   ¦       discount.js
+¦   ¦       payment.js
+¦   ¦       
+¦   +---services
+¦   ¦       bookingService.js.txt
+¦   ¦       emailService.js.txt
+¦   ¦       paymentService.js
+¦   ¦       syncService.js
+¦   ¦       
+¦   +---utils
+¦           helpers.js
+¦           logger.js
+¦           seeder.js
+¦           validators.js
+¦           
++---tests
+    +---e2e
+    +---integration
+    +---unit

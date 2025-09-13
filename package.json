@@ -1,0 +1,29 @@
+{
+  "scripts": {
+    "start": "node server.js",
+    "start:postgres": "node server.js",
+    "start:mongodb": "node server-mongodb.js",
+    "start:production": "node server-production-mongodb.js",
+    "setup:mongodb": "node mongodb-test-setup.js",
+    "test:mongodb": "node mongodb-test-setup.js",
+    "test:production": "node production-mongodb-test.js",
+    "dev": "nodemon server.js",
+    "dev:mongodb": "nodemon server-mongodb.js",
+    "dev:production": "nodemon server-production-mongodb.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.0.1",
+    "helmet": "^8.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongodb": "^6.19.0",
+    "mongoose": "^8.18.0",
+    "stripe": "^18.4.0",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0"
+  }
+}
