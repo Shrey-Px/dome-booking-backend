@@ -4,15 +4,7 @@
   "main": "server-production-mongodb.js",  
   "scripts": {
     "start": "node server-production-mongodb.js",
-    "start:postgres": "node server.js",
-    "start:mongodb": "node server-mongodb.js",
-    "start:production": "node server-production-mongodb.js",
-    "setup:mongodb": "node mongodb-test-setup.js",
-    "test:mongodb": "node mongodb-test-setup.js",
-    "test:production": "node production-mongodb-test.js",
     "dev": "nodemon server-production-mongodb.js"
-    "dev:mongodb": "nodemon server-mongodb.js",
-    "dev:production": "nodemon server-production-mongodb.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.2",
@@ -28,6 +20,9 @@
     "morgan": "^1.10.0",
     "stripe": "^18.4.0",
     "uuid": "^11.1.0",
-    "winston": "^3.17.0"
+    "winston": "^3.17.0",
+    "sequelize": "^6.31.0",
+    "pg": "^8.11.0",
+    "pg-hstore": "^2.3.4"
   }
 }
