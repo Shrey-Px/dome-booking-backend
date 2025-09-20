@@ -104,7 +104,7 @@ const productionAvailabilityController = {
       const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
       const dayName = days[dayOfWeek];
       
-      // FIXED: Strings Badminton Academy operating hours
+      // FIXED: Vision Badminton Centre operating hours
       // Weekday (Mon-Fri): 08:00-20:00, Weekend (Sat-Sun): 06:00-22:00
       let operatingHours;
       if (dayOfWeek >= 1 && dayOfWeek <= 5) {
@@ -120,7 +120,7 @@ const productionAvailabilityController = {
       // Generate availability for each court
       const availability = {};
       
-      // FIXED: Strings Badminton Academy has 10 courts (not 2)
+      // FIXED: Vision Badminton Centre has 10 courts (not 2)
       const courts = [];
       for (let i = 1; i <= 10; i++) {
         courts.push({ id: i, name: `Court ${i}`, sport: 'Badminton' });
