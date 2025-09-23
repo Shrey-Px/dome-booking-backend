@@ -48,6 +48,18 @@ app.get('/', (req, res) => {
   });
 });
 
+// Add this new endpoint after your existing /health endpoint
+app.get('/current-ip', (req, res) => {
+  require('https').get('https://api.ipify.org?format=json', (response) => {
+    let data = '';
+    response.on('data', (chunk) => data += chunk);
+    response.on('end', () => {
+      const ip = JSON.parse(data).ip;
+      res.json({ ip: ip, forwardedFor: req.headers['x-forwarded-for'] });
+    });
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     success: true,
