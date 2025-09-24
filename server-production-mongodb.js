@@ -157,7 +157,7 @@ app.use((req, res) => {
 async function startProductionServer() {
   try {
     console.log('Initializing Production MongoDB connection...');
-    await connectMongoDB();
+    // await connectMongoDB();
     console.log('Production MongoDB connection established successfully');
     
     const server = app.listen(PORT, () => {
