@@ -48,6 +48,52 @@ app.get('/', (req, res) => {
   });
 });
 
+// Add these debug endpoints after the /health endpoint
+app.get('/debug/connection', (req, res) => {
+  res.json({
+    success: true,
+    mongooseState: mongoose.connection.readyState,
+    stateNames: {
+      0: 'disconnected',
+      1: 'connected', 
+      2: 'connecting',
+      3: 'disconnecting'
+    },
+    currentState: ['disconnected', 'connected', 'connecting', 'disconnecting'][mongoose.connection.readyState],
+    dbName: mongoose.connection.db?.databaseName || 'unknown'
+  });
+});
+
+app.get('/debug/venues', async (req, res) => {
+  try {
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(500).json({
+        success: false,
+        error: 'Database not connected',
+        connectionState: mongoose.connection.readyState
+      });
+    }
+
+    const Venue = require('./src/models/mongodb/Venue');
+    const venues = await Venue.find({});
+    
+    res.json({
+      success: true,
+      count: venues.length,
+      venues: venues.map(v => ({
+        id: v._id,
+        name: v.fullName,
+        active: v.isActive
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 // Add this new endpoint after your existing /health endpoint
 app.get('/current-ip', (req, res) => {
   require('https').get('https://api.ipify.org?format=json', (response) => {
