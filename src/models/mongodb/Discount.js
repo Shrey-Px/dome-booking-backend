@@ -93,6 +93,7 @@ const discountSchema = new mongoose.Schema({
 });
 
 // Indexes
+discountSchema.index({ code: 1 });
 discountSchema.index({ active: 1 });
 discountSchema.index({ validFrom: 1, validUntil: 1 });
 discountSchema.index({ createdAt: -1 });
