@@ -6,37 +6,28 @@ const connectMongoDB = async () => {
   try {
     const options = {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-      socketTimeoutMS: 45000
+      serverSelectionTimeoutMS: 30000,
+      socketTimeoutMS: 45000,
+      connectTimeoutMS: 30000,
+      heartbeatFrequencyMS: 10000
     };
-
+    
     console.log('🔌 Connecting to MongoDB...');
     await mongoose.connect(process.env.MONGODB_URI, options);
     
-    console.log('✅ MongoDB connected successfully');
-    logger.info('MongoDB connected successfully');
-
-    // Handle connection events
-    mongoose.connection.on('error', (error) => {
-      console.error('❌ MongoDB connection error:', error);
-      logger.error('MongoDB connection error', { error: error.message });
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.log('🔌 MongoDB disconnected');
-      logger.warn('MongoDB disconnected');
-    });
-
-    mongoose.connection.on('reconnected', () => {
-      console.log('🔄 MongoDB reconnected');
-      logger.info('MongoDB reconnected');
-    });
-
-    return mongoose.connection;
+    // Wait for connection to be ready
+    if (mongoose.connection.readyState === 1) {
+      console.log('✅ MongoDB connected successfully');
+      console.log('Database name:', mongoose.connection.db.databaseName);
+      console.log('Connection state:', mongoose.connection.readyState);
+      return mongoose.connection;
+    } else {
+      throw new Error('MongoDB connection not ready');
+    }
+    
   } catch (error) {
-    console.error('❌ MongoDB connection failed:', error);
-    logger.error('MongoDB connection failed', { error: error.message });
-    process.exit(1);
+    console.error('❌ MongoDB connection failed:', error.message);
+    throw error; // Re-throw to stop server startup
   }
 };
 
