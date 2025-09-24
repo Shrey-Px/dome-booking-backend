@@ -14,6 +14,7 @@ const productionPaymentController = require('./src/controllers/mongodb/productio
 const logger = require('./src/utils/logger');
 
 const app = express();
+app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -166,7 +167,7 @@ async function startProductionServer() {
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`API Base URL: http://localhost:${PORT}`);
       console.log(`Health Check: http://localhost:${PORT}/health`);
-      console.log(`Availability Test: http://localhost:${PORT}/api/v1/availability?facility_id=685a8c657a7041e6a3022a76&date=2025-08-27`);
+      console.log(`Availability Test: http://localhost:${PORT}/api/v1/availability?facility_id=68cad6b20a06da55dfb88af5&date=2025-08-27`);
       console.log(`Database: Production MongoDB (Strings Badminton Academy)`);
       console.log(`Venue ID: 685a8c657a7041e6a3022a76`);
       console.log('='.repeat(70));
