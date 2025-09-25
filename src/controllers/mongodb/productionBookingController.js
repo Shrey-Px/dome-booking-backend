@@ -237,6 +237,28 @@ const productionBookingController = {
       const createdBooking = await db.collection('Booking').findOne({ _id: result.insertedId });
       
       console.log('[Production MongoDB] Booking created successfully:', result.insertedId);
+      // Send confirmation email
+      const bookingEmailData = {
+        customerName: customerName,
+        customerEmail: customerEmail,
+  	facilityName: 'Vision Badminton Centre',
+  	courtName: `Court ${courtNumber}`,
+  	bookingDate: bookingDate,
+  	startTime: startTime,
+  	endTime: endTime,
+  	duration: duration,
+  	totalAmount: calculatedTotalPrice.toFixed(2),
+  	bookingId: result.insertedId.toString(),
+  	cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
+      };
+
+      try {
+  	await emailService.sendBookingConfirmation(bookingEmailData);
+  	console.log('[Production MongoDB] Confirmation email sent successfully');
+      } catch (emailError) {
+  	console.error('[Production MongoDB] Failed to send confirmation email:', emailError);
+  	// Don't fail the booking if email fails
+      }
 
       res.status(201).json({
         success: true,
@@ -253,30 +275,6 @@ const productionBookingController = {
         }
       });
       
-      // Add this after successful booking creation (around line 150)
-      const bookingEmailData = {
-        customerName: customerName,
-        customerEmail: customerEmail,
-        facilityName: 'Vision Badminton Centre',
-        courtName: `Court ${courtNumber}`,
-        bookingDate: bookingDate,
-        startTime: startTime,
-        endTime: endTime,
-        duration: duration,
-        totalAmount: calculatedTotalPrice.toFixed(2),
-        bookingId: result.insertedId.toString(),
-        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
-      };
-
-      // Send confirmation email
-      try {
-        await emailService.sendBookingConfirmation(bookingEmailData);
-        console.log('Confirmation email sent successfully');
-      } catch (emailError) {
-        console.error('Failed to send confirmation email:', emailError);
-        // Don't fail the booking if email fails
-      }
-
     } catch (error) {
       console.error('[Production MongoDB] Error creating booking:', error);
       res.status(500).json({
@@ -380,7 +378,142 @@ const productionBookingController = {
         error: error.message
       });
     }
+  },
+
+  getCancellationDetails: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const db = require('mongoose').connection.db;
+    
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new require('mongodb').ObjectId(id) 
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+    // Check if booking can be cancelled (24 hours rule)
+    const now = new Date();
+    const bookingDateTime = new Date(booking.startTime);
+    const timeDiff = bookingDateTime.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    const canCancel = hoursDiff > 24 && ['Booked', 'Completed'].includes(booking.bookingStatus);
+
+    res.json({
+      success: true,
+      data: {
+        booking,
+        canCancel,
+        hoursUntilBooking: Math.max(0, hoursDiff)
+      }
+    });
+  } catch (error) {
+    console.error('Error getting cancellation details:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve booking details',
+      error: error.message
+    });
   }
-};
+},
+
+processCancellation: async (req, res) => {
+  try {
+    const { id } = req.params;
+    const db = require('mongoose').connection.db;
+    
+    const booking = await db.collection('Booking').findOne({ 
+      _id: new require('mongodb').ObjectId(id) 
+    });
+
+    if (!booking) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Check 24-hour rule
+    const now = new Date();
+    const bookingDateTime = new Date(booking.startTime);
+    const timeDiff = bookingDateTime.getTime() - now.getTime();
+    const hoursDiff = timeDiff / (1000 * 60 * 60);
+    
+    if (hoursDiff <= 24) {
+      return res.status(400).json({
+        success: false,
+        message: 'Bookings cannot be cancelled within 24 hours of the scheduled time',
+        hoursUntilBooking: Math.max(0, hoursDiff)
+      });
+    }
+
+    if (!['Booked', 'Completed'].includes(booking.bookingStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: 'This booking cannot be cancelled'
+      });
+    }
+
+    // Cancel the booking
+    const result = await db.collection('Booking').updateOne(
+      { _id: new require('mongodb').ObjectId(id) },
+      { 
+        $set: { 
+          bookingStatus: 'Cancelled',
+          paymentIntentStatus: 'Cancelled',
+          cancelledAt: new Date()
+        } 
+      }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Booking not found'
+      });
+    }
+
+    // Send cancellation email
+    const emailData = {
+      customerName: booking.customerName,
+      customerEmail: booking.customerEmail,
+      facilityName: 'Vision Badminton Centre',
+      courtName: booking.fieldName,
+      bookingDate: booking.bookingDate.toISOString().split('T')[0],
+      startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+      bookingId: booking._id.toString()
+    };
+
+    try {
+      await emailService.sendCancellationConfirmation(emailData);
+      console.log('Cancellation email sent successfully');
+    } catch (emailError) {
+      console.error('Failed to send cancellation email:', emailError);
+    }
+
+    res.json({
+      success: true,
+      message: 'Booking cancelled successfully',
+      data: { 
+        bookingId: id,
+        cancelledAt: new Date()
+      }
+    });
+
+  } catch (error) {
+    console.error('Error processing cancellation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to cancel booking',
+      error: error.message
+    });
+  }
+}
 
 module.exports = productionBookingController;
