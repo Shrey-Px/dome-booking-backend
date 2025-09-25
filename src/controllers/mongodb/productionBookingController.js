@@ -252,11 +252,18 @@ const productionBookingController = {
   	cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
       };
 
+      console.log('[Production MongoDB] Email data prepared:', {
+        customerEmail: bookingEmailData.customerEmail,
+        totalAmount: bookingEmailData.totalAmount,
+        bookingId: bookingEmailData.bookingId
+      });
+
       try {
   	await emailService.sendBookingConfirmation(bookingEmailData);
   	console.log('[Production MongoDB] Confirmation email sent successfully');
       } catch (emailError) {
   	console.error('[Production MongoDB] Failed to send confirmation email:', emailError);
+        console.error('[Production MongoDB] Email error stack:', emailError.stack);
   	// Don't fail the booking if email fails
       }
 
