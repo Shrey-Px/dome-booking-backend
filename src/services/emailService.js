@@ -1,4 +1,4 @@
-// src/services/emailService.js
+// src/services/emailService.js - FIXED VERSION
 const nodemailer = require('nodemailer');
 const handlebars = require('handlebars');
 const fs = require('fs');
@@ -6,7 +6,8 @@ const path = require('path');
 
 class EmailService {
   constructor() {
-    this.transporter = nodemailer.createTransporter({
+    // FIXED: Changed from createTransporter to createTransport
+    this.transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
