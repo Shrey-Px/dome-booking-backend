@@ -1,15 +1,23 @@
-// src/services/emailService.js - COMPLETELY CORRECTED VERSION
+// src/services/emailService.js - Updated with robust SMTP configuration
 const nodemailer = require('nodemailer');
-const handlebars = require('handlebars');
 
 class EmailService {
   constructor() {
+    // More robust Gmail SMTP configuration
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false, // true for 465, false for other ports
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASSWORD
-      }
+      },
+      tls: {
+        rejectUnauthorized: false
+      },
+      connectionTimeout: 60000, // 60 seconds
+      greetingTimeout: 30000, // 30 seconds
+      socketTimeout: 60000, // 60 seconds
     });
   }
 
@@ -85,12 +93,31 @@ class EmailService {
         html: htmlTemplate
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Confirmation email sent:', result.messageId);
+      // Add timeout wrapper
+      const sendWithTimeout = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('Email sending timeout after 30 seconds'));
+        }, 30000);
+
+        this.transporter.sendMail(mailOptions)
+          .then(result => {
+            clearTimeout(timeout);
+            resolve(result);
+          })
+          .catch(error => {
+            clearTimeout(timeout);
+            reject(error);
+          });
+      });
+
+      const result = await sendWithTimeout;
+      console.log('Confirmation email sent successfully:', result.messageId);
       return result;
+      
     } catch (error) {
       console.error('Failed to send confirmation email:', error);
-      throw error;
+      // Don't throw error - let booking succeed even if email fails
+      return { error: error.message };
     }
   }
 
@@ -150,11 +177,12 @@ class EmailService {
       };
 
       const result = await this.transporter.sendMail(mailOptions);
-      console.log('Cancellation email sent:', result.messageId);
+      console.log('Cancellation email sent successfully:', result.messageId);
       return result;
+      
     } catch (error) {
       console.error('Failed to send cancellation email:', error);
-      throw error;
+      return { error: error.message };
     }
   }
 }
