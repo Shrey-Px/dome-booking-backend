@@ -7,6 +7,7 @@
     "dev": "nodemon server-production-mongodb.js"
   },
   "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",

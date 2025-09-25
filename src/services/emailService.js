@@ -1,29 +1,24 @@
-// src/services/emailService.js - Updated with robust SMTP configuration
-const nodemailer = require('nodemailer');
+// src/services/emailService.js - SendGrid Implementation
+const sgMail = require('@sendgrid/mail');
 
 class EmailService {
   constructor() {
-    // More robust Gmail SMTP configuration
-    this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 587,
-      secure: false, // true for 465, false for other ports
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASSWORD
-      },
-      tls: {
-        rejectUnauthorized: false
-      },
-      connectionTimeout: 60000, // 60 seconds
-      greetingTimeout: 30000, // 30 seconds
-      socketTimeout: 60000, // 60 seconds
-    });
+    if (process.env.SENDGRID_API_KEY) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      console.log('SendGrid email service initialized');
+    } else {
+      console.warn('SENDGRID_API_KEY not found, email service will be disabled');
+    }
   }
 
   async sendBookingConfirmation(bookingData) {
     try {
-      console.log('Sending confirmation email with data:', bookingData);
+      if (!process.env.SENDGRID_API_KEY) {
+        console.log('SendGrid not configured, skipping email');
+        return { messageId: 'skipped-no-api-key' };
+      }
+
+      console.log('Sending confirmation email via SendGrid:', bookingData.customerEmail);
       
       const htmlTemplate = `
         <!DOCTYPE html>
@@ -86,44 +81,34 @@ class EmailService {
         </html>
       `;
 
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
+      const msg = {
         to: bookingData.customerEmail,
+        from: process.env.EMAIL_FROM || 'noreply@domesports.com',
         subject: `Booking Confirmation - ${bookingData.facilityName}`,
         html: htmlTemplate
       };
 
-      // Add timeout wrapper
-      const sendWithTimeout = new Promise((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          reject(new Error('Email sending timeout after 30 seconds'));
-        }, 30000);
-
-        this.transporter.sendMail(mailOptions)
-          .then(result => {
-            clearTimeout(timeout);
-            resolve(result);
-          })
-          .catch(error => {
-            clearTimeout(timeout);
-            reject(error);
-          });
-      });
-
-      const result = await sendWithTimeout;
-      console.log('Confirmation email sent successfully:', result.messageId);
-      return result;
+      const result = await sgMail.send(msg);
+      console.log('SendGrid confirmation email sent successfully:', result[0].statusCode);
+      return { messageId: result[0].headers['x-message-id'] };
       
     } catch (error) {
-      console.error('Failed to send confirmation email:', error);
-      // Don't throw error - let booking succeed even if email fails
+      console.error('Failed to send confirmation email via SendGrid:', error);
+      if (error.response) {
+        console.error('SendGrid error details:', error.response.body);
+      }
       return { error: error.message };
     }
   }
 
   async sendCancellationConfirmation(bookingData) {
     try {
-      console.log('Sending cancellation email with data:', bookingData);
+      if (!process.env.SENDGRID_API_KEY) {
+        console.log('SendGrid not configured, skipping cancellation email');
+        return { messageId: 'skipped-no-api-key' };
+      }
+
+      console.log('Sending cancellation email via SendGrid:', bookingData.customerEmail);
       
       const htmlTemplate = `
         <!DOCTYPE html>
@@ -169,19 +154,22 @@ class EmailService {
         </html>
       `;
 
-      const mailOptions = {
-        from: process.env.EMAIL_USER,
+      const msg = {
         to: bookingData.customerEmail,
+        from: process.env.EMAIL_FROM || 'noreply@domesports.com',
         subject: `Booking Cancelled - ${bookingData.facilityName}`,
         html: htmlTemplate
       };
 
-      const result = await this.transporter.sendMail(mailOptions);
-      console.log('Cancellation email sent successfully:', result.messageId);
-      return result;
+      const result = await sgMail.send(msg);
+      console.log('SendGrid cancellation email sent successfully:', result[0].statusCode);
+      return { messageId: result[0].headers['x-message-id'] };
       
     } catch (error) {
-      console.error('Failed to send cancellation email:', error);
+      console.error('Failed to send cancellation email via SendGrid:', error);
+      if (error.response) {
+        console.error('SendGrid error details:', error.response.body);
+      }
       return { error: error.message };
     }
   }
