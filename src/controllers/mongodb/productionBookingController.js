@@ -1,6 +1,7 @@
 // src/controllers/mongodb/productionBookingController.js - Complete Fixed Version with ObjectId compatibility
 const Venue = require('../../models/mongodb/Venue');
 const { ObjectId } = require('mongodb');
+const emailService = require('../../services/emailService');
 
 const productionBookingController = {
   createBooking: async (req, res) => {
@@ -168,7 +169,7 @@ const productionBookingController = {
       const bookingData = {
         // FIXED: Mobile app core fields with proper data types
         venue: new ObjectId(facilityId), // ObjectId instead of string
-        owner_id: "685a8e63a1e45e1eb270c9cb",
+        owner_id: "68cad6b20a06da55dfb88af5",
         bookingStatus: 'Booked',
         fieldName: `Court ${courtNumber}`,
         gameName: 'Badminton',
@@ -251,6 +252,30 @@ const productionBookingController = {
           paymentIntentStatus: createdBooking.paymentIntentStatus
         }
       });
+      
+      // Add this after successful booking creation (around line 150)
+      const bookingEmailData = {
+        customerName: customerName,
+        customerEmail: customerEmail,
+        facilityName: 'Vision Badminton Centre',
+        courtName: `Court ${courtNumber}`,
+        bookingDate: bookingDate,
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        totalAmount: calculatedTotalPrice.toFixed(2),
+        bookingId: result.insertedId.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
+      };
+
+      // Send confirmation email
+      try {
+        await emailService.sendBookingConfirmation(bookingEmailData);
+        console.log('Confirmation email sent successfully');
+      } catch (emailError) {
+        console.error('Failed to send confirmation email:', emailError);
+        // Don't fail the booking if email fails
+      }
 
     } catch (error) {
       console.error('[Production MongoDB] Error creating booking:', error);

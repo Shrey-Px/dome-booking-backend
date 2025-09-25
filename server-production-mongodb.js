@@ -10,6 +10,7 @@ const productionAvailabilityController = require('./src/controllers/mongodb/prod
 const productionBookingController = require('./src/controllers/mongodb/productionBookingController');
 const productionDiscountController = require('./src/controllers/mongodb/productionDiscountController');
 const productionPaymentController = require('./src/controllers/mongodb/productionPaymentController');
+const cancellationRoutes = require('./src/routes/cancellation');
 
 const logger = require('./src/utils/logger');
 
@@ -118,6 +119,9 @@ app.get('/health', (req, res) => {
 
 // Production API Routes - using v1 for frontend compatibility
 app.get('/api/v1/availability', productionAvailabilityController.getAvailability);
+
+// Add this route mounting near other route definitions
+app.use('/api/v1/cancellation', cancellationRoutes);
 
 // Booking endpoints
 app.post('/api/v1/booking/create-booking', productionBookingController.createBooking);
