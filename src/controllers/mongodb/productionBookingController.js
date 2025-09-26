@@ -156,14 +156,21 @@ const productionBookingController = {
       }
 
       // Calculate pricing to match mobile app
-      const finalAmount = totalAmount - (discountAmount || 0);
-      const convenienceFeePercentage = 3;
-      const taxPercentage = 13;
-      
-      const convenienceFee = finalAmount * (convenienceFeePercentage / 100);
-      const priceAfterConvenience = finalAmount + convenienceFee;
-      const tax = priceAfterConvenience * (taxPercentage / 100);
-      const calculatedTotalPrice = priceAfterConvenience + tax;
+      const courtRental = totalAmount; // $25.00
+      const serviceFee = courtRental * 0.01; // 1% of court rental = $0.25
+      const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied
+      const subtotal = courtRental + serviceFee - discountApplied; // $25.00 + $0.25 - $2.50 = $22.75
+      const tax = subtotal * 0.13; // 13% tax = $2.96
+      const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
+
+      console.log('[Production MongoDB] Pricing breakdown:', {
+  	courtRental: courtRental.toFixed(2),
+  	serviceFee: serviceFee.toFixed(2),
+  	discountApplied: discountApplied.toFixed(2),
+  	subtotal: subtotal.toFixed(2),
+  	tax: tax.toFixed(2),
+  	finalTotal: finalTotal.toFixed(2)
+      });
 
       // FIXED: Create booking data with mobile app schema using proper ObjectId format
       const bookingData = {
@@ -175,22 +182,21 @@ const productionBookingController = {
         gameName: 'Badminton',
         
         // Pricing with Decimal128 format
-        price: { $numberDecimal: finalAmount.toFixed(2) },
-        pricePerHour: { $numberDecimal: "1.00" },
-        totalPrice: { $numberDecimal: calculatedTotalPrice.toFixed(2) },
+        price: { $numberDecimal: courtRental.toFixed(2) }, // $25.00
+        pricePerHour: { $numberDecimal: "25.00" }, // Updated from 1.00
+        totalPrice: { $numberDecimal: finalTotal.toFixed(2) }, // $25.71
         
         // Fee calculations
-        convenienceFeePercentage: { $numberDecimal: convenienceFeePercentage.toString() },
-        taxPercentage: { $numberDecimal: taxPercentage.toString() },
-        convenienceFee: { $numberDecimal: convenienceFee.toFixed(2) },
-        tax: { $numberDecimal: tax.toFixed(2) },
-        priceAfterAddingConvenienceFee: { $numberDecimal: priceAfterConvenience.toFixed(2) },
+        serviceFeePercentage: { $numberDecimal: "1.00" }, // Changed from convenienceFeePercentage
+        taxPercentage: { $numberDecimal: "13.00" },
+        serviceFee: { $numberDecimal: serviceFee.toFixed(2) }, // $0.25
+        tax: { $numberDecimal: tax.toFixed(2) }, // $2.96
+        subtotal: { $numberDecimal: subtotal.toFixed(2) }, // $22.75
         
         // Discount handling
         discountPercentage: { $numberDecimal: discountCode ? "10" : "0" },
-        discount: { $numberDecimal: (discountAmount || 0).toFixed(2) },
-        priceAfterDeductingDiscount: { $numberDecimal: finalAmount.toFixed(2) },
-        
+        discount: { $numberDecimal: discountApplied.toFixed(2) },
+                
         // Time fields - use proper date objects
         duration: { $numberDecimal: ((duration || 60) / 60).toString() },
         startTime: bookingStartTime,
@@ -253,13 +259,14 @@ const productionBookingController = {
         startTime: startTime,
         endTime: endTime,
         duration: duration,
-        // FIX 2: Show the amount breakdown properly
-        subtotal: finalAmount.toFixed(2), // Amount after discount
-        discountAmount: (discountAmount || 0).toFixed(2),
-        totalAmount: calculatedTotalPrice.toFixed(2), // Final amount with taxes
-  	originalAmount: totalAmount.toFixed(2), // Original amount before discount
-  	bookingId: result.insertedId.toString(),
-  	cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
+        courtRental: courtRental.toFixed(2),
+        serviceFee: serviceFee.toFixed(2),
+        discountAmount: discountApplied.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        tax: tax.toFixed(2),
+        totalAmount: finalTotal.toFixed(2), // $25.71
+        bookingId: result.insertedId.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
       };
 
       console.log('[Production MongoDB] Email data prepared:', {

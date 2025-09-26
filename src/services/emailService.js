@@ -30,6 +30,7 @@ class EmailService {
             .header { background: #1E293B; color: white; padding: 20px; text-align: center; }
             .content { background: #f9f9f9; padding: 20px; }
             .booking-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+            .amount-breakdown { background: #f8f9fa; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #1E293B; }
             .cancel-button { 
               display: inline-block; 
               background: #DC2626; 
@@ -41,6 +42,9 @@ class EmailService {
               text-align: center;
             }
             .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
+            .amount-row { display: flex; justify-content: space-between; margin: 8px 0; padding: 2px 0; }
+            .amount-total { font-weight: bold; border-top: 2px solid #1E293B; padding-top: 8px; margin-top: 12px; font-size: 16px; }
+            .discount-row { color: #28a745; font-weight: 500; }
           </style>
         </head>
         <body>
@@ -61,8 +65,43 @@ class EmailService {
                 <p><strong>Date:</strong> ${bookingData.bookingDate}</p>
                 <p><strong>Time:</strong> ${bookingData.startTime} - ${bookingData.endTime}</p>
                 <p><strong>Duration:</strong> ${bookingData.duration} minutes</p>
-                <p><strong>Total Amount:</strong> $${bookingData.totalAmount}</p>
                 <p><strong>Booking ID:</strong> ${bookingData.bookingId}</p>
+
+                <div class="amount-breakdown">
+                  <h4 style="margin-top: 0; color: #1E293B;">Payment Summary</h4>
+
+                  <div class="amount-row">
+                    <span>Court Rental (${bookingData.duration} minutes):</span>
+                    <span>$${bookingData.courtRental}</span>
+                  </div>
+
+                  <div class="amount-row">
+                    <span>Service Fee (1% of court rental):</span>
+                    <span>$${bookingData.serviceFee}</span>
+                  </div>
+
+                  ${bookingData.discountAmount && parseFloat(bookingData.discountAmount) > 0 ? `
+                    <div class="amount-row discount-row">
+                      <span>Discount Applied (10%):</span>
+                      <span>-$${bookingData.discountAmount}</span>
+                    </div>
+                  ` : ''}
+
+                  <div class="amount-row">
+                    <span>Subtotal:</span>
+                    <span>$${bookingData.subtotal}</span>
+                  </div>
+            
+                  <div class="amount-row">
+                    <span>Tax (13% HST):</span>
+                    <span>$${bookingData.tax}</span>
+                  </div>
+
+                  <div class="amount-row amount-total">
+                    <span>Total Charged:</span>
+                    <span>$${bookingData.totalAmount}</span>
+                  </div>
+                </div>
               </div>
 
               <div style="text-align: center;">
@@ -74,7 +113,7 @@ class EmailService {
             
             <div class="footer">
               <p>Thank you for choosing DOME Sports Facility</p>
-              <p>If you have any questions, please contact us.</p>
+              <p>If you have any questions, please contact us at info@dafloinnovations.com</p>
             </div>
           </div>
         </body>
