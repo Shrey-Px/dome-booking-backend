@@ -241,21 +241,33 @@ const productionBookingController = {
       const bookingEmailData = {
         customerName: customerName,
         customerEmail: customerEmail,
-  	facilityName: 'Vision Badminton Centre',
-  	courtName: `Court ${courtNumber}`,
-  	bookingDate: bookingDate,
-  	startTime: startTime,
-  	endTime: endTime,
-  	duration: duration,
-  	totalAmount: calculatedTotalPrice.toFixed(2),
+        facilityName: 'Vision Badminton Centre',
+        courtName: `Court ${courtNumber}`,
+        // FIX 1: Format date properly without timezone shift
+        bookingDate: new Date(year, month - 1, day).toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric', 
+          month: 'long',
+          day: 'numeric'
+        }),
+        startTime: startTime,
+        endTime: endTime,
+        duration: duration,
+        // FIX 2: Show the amount breakdown properly
+        subtotal: finalAmount.toFixed(2), // Amount after discount
+        discountAmount: (discountAmount || 0).toFixed(2),
+        totalAmount: calculatedTotalPrice.toFixed(2), // Final amount with taxes
+  	originalAmount: totalAmount.toFixed(2), // Original amount before discount
   	bookingId: result.insertedId.toString(),
   	cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
       };
 
       console.log('[Production MongoDB] Email data prepared:', {
-        customerEmail: bookingEmailData.customerEmail,
-        totalAmount: bookingEmailData.totalAmount,
-        bookingId: bookingEmailData.bookingId
+  	customerEmail: bookingEmailData.customerEmail,
+  	bookingDate: bookingEmailData.bookingDate, // Check this in logs
+  	subtotal: bookingEmailData.subtotal,
+  	totalAmount: bookingEmailData.totalAmount,
+  	bookingId: bookingEmailData.bookingId
       });
 
       try {
