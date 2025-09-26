@@ -1,4 +1,4 @@
-// src/controllers/mongodb/productionBookingController.js - Complete Fixed Version with ObjectId compatibility
+// src/controllers/mongodb/productionBookingController.js - Updated with new pricing and email timing
 const Venue = require('../../models/mongodb/Venue');
 const { ObjectId } = require('mongodb');
 const emailService = require('../../services/emailService');
@@ -67,7 +67,7 @@ const productionBookingController = {
         }
       });
 
-      // FIXED: Check for time conflicts using proper MongoDB query that handles both ObjectId and string venue formats
+      // Check for time conflicts
       const db = require('mongoose').connection.db;
       
       const dayStart = new Date(year, month - 1, day, 0, 0, 0);
@@ -75,39 +75,32 @@ const productionBookingController = {
       
       const conflictingBookings = await db.collection('Booking').find({
         $and: [
-          // FIXED: Search for both string and ObjectId venue formats
           {
             $or: [
-              { venue: facilityId }, // String format (web bookings)
-              { venue: new ObjectId(facilityId) } // ObjectId format (mobile bookings)
+              { venue: facilityId },
+              { venue: new ObjectId(facilityId) }
             ]
           },
-          // Court matching condition
           {
             $or: [
-              { fieldName: `Court ${courtNumber}` }, // Mobile format
-              { courtNumber: courtNumber } // Old web format
+              { fieldName: `Court ${courtNumber}` },
+              { courtNumber: courtNumber }
             ]
           },
-          // Time and status matching condition
           {
             $or: [
-              // Mobile format with Date objects
               {
                 startTime: { $gte: dayStart, $lte: dayEnd },
                 bookingStatus: { $in: ['Booked', 'Completed'] }
               },
-              // Old web format with date strings
               {
                 bookingDate: { $gte: dayStart, $lte: dayEnd },
                 status: { $in: ['pending', 'paid', 'completed'] }
               }
             ]
           },
-          // Additional time overlap check for precision
           {
             $or: [
-              // For mobile format bookings - check actual time overlap
               {
                 $and: [
                   { startTime: { $lt: bookingEndTime } },
@@ -115,7 +108,6 @@ const productionBookingController = {
                   { bookingStatus: { $exists: true } }
                 ]
               },
-              // For old web format bookings - check time string overlap
               {
                 $and: [
                   { startTime: { $lt: endTime } },
@@ -155,33 +147,32 @@ const productionBookingController = {
         });
       }
 
-      // Calculate pricing to match mobile app
-      const courtRental = totalAmount; // $25.00
-      const serviceFee = courtRental * 0.01; // 1% of court rental = $0.25
+      // NEW PRICING CALCULATION STRUCTURE
+      const courtRental = 25.00; // Base court rental
+      const serviceFee = courtRental * 0.01; // 1% service fee = $0.25
       const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied
       const subtotal = courtRental + serviceFee - discountApplied; // $25.00 + $0.25 - $2.50 = $22.75
       const tax = subtotal * 0.13; // 13% tax = $2.96
       const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
 
       console.log('[Production MongoDB] Pricing breakdown:', {
-  	courtRental: courtRental.toFixed(2),
-  	serviceFee: serviceFee.toFixed(2),
-  	discountApplied: discountApplied.toFixed(2),
-  	subtotal: subtotal.toFixed(2),
-  	tax: tax.toFixed(2),
-  	finalTotal: finalTotal.toFixed(2)
+        courtRental: courtRental.toFixed(2),
+        serviceFee: serviceFee.toFixed(2),
+        discountApplied: discountApplied.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        tax: tax.toFixed(2),
+        finalTotal: finalTotal.toFixed(2)
       });
 
-      // FIXED: Create booking data with mobile app schema using proper ObjectId format
+      // Create booking data with new pricing structure
       const bookingData = {
-        // FIXED: Mobile app core fields with proper data types
-        venue: new ObjectId(facilityId), // ObjectId instead of string
-        owner_id: "68cad6b20a06da55dfb88af5",
+        venue: new ObjectId(facilityId),
+        owner_id: "685a8e63a1e45e1eb270c9cb",
         bookingStatus: 'Booked',
         fieldName: `Court ${courtNumber}`,
         gameName: 'Badminton',
         
-        // Pricing with Decimal128 format
+        // Updated pricing fields with new structure
         price: { $numberDecimal: courtRental.toFixed(2) }, // $25.00
         pricePerHour: { $numberDecimal: "25.00" }, // Updated from 1.00
         totalPrice: { $numberDecimal: finalTotal.toFixed(2) }, // $25.71
@@ -196,8 +187,9 @@ const productionBookingController = {
         // Discount handling
         discountPercentage: { $numberDecimal: discountCode ? "10" : "0" },
         discount: { $numberDecimal: discountApplied.toFixed(2) },
-                
-        // Time fields - use proper date objects
+        priceAfterDeductingDiscount: { $numberDecimal: (courtRental - discountApplied).toFixed(2) },
+        
+        // Time fields
         duration: { $numberDecimal: ((duration || 60) / 60).toString() },
         startTime: bookingStartTime,
         endTime: bookingEndTime,
@@ -205,7 +197,7 @@ const productionBookingController = {
         
         // Payment and booking details
         currency: "cad",
-        paymentIntentStatus: "Success",
+        paymentIntentStatus: "Pending", // Changed from "Success" since payment hasn't happened yet
         cartId: require('crypto').randomUUID(),
         
         // Game configuration
@@ -217,8 +209,8 @@ const productionBookingController = {
         bringYourOwnEquipment: true,
         playerCompetancyLevel: "Beginner",
         
-        // FIXED: Player and customer info with proper ObjectId handling
-        player: userId ? new ObjectId(userId) : null, // ObjectId or null for mobile compatibility
+        // Customer info
+        player: userId ? new ObjectId(userId) : null,
         customerName,
         customerEmail,
         customerPhone,
@@ -243,54 +235,15 @@ const productionBookingController = {
       const createdBooking = await db.collection('Booking').findOne({ _id: result.insertedId });
       
       console.log('[Production MongoDB] Booking created successfully:', result.insertedId);
-      // Send confirmation email
-      const bookingEmailData = {
-        customerName: customerName,
-        customerEmail: customerEmail,
-        facilityName: 'Vision Badminton Centre',
-        courtName: `Court ${courtNumber}`,
-        // FIX 1: Format date properly without timezone shift
-        bookingDate: new Date(year, month - 1, day).toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric', 
-          month: 'long',
-          day: 'numeric'
-        }),
-        startTime: startTime,
-        endTime: endTime,
-        duration: duration,
-        courtRental: courtRental.toFixed(2),
-        serviceFee: serviceFee.toFixed(2),
-        discountAmount: discountApplied.toFixed(2),
-        subtotal: subtotal.toFixed(2),
-        tax: tax.toFixed(2),
-        totalAmount: finalTotal.toFixed(2), // $25.71
-        bookingId: result.insertedId.toString(),
-        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${result.insertedId.toString()}`
-      };
 
-      console.log('[Production MongoDB] Email data prepared:', {
-  	customerEmail: bookingEmailData.customerEmail,
-  	bookingDate: bookingEmailData.bookingDate, // Check this in logs
-  	subtotal: bookingEmailData.subtotal,
-  	totalAmount: bookingEmailData.totalAmount,
-  	bookingId: bookingEmailData.bookingId
-      });
-
-      try {
-  	await emailService.sendBookingConfirmation(bookingEmailData);
-  	console.log('[Production MongoDB] Confirmation email sent successfully');
-      } catch (emailError) {
-  	console.error('[Production MongoDB] Failed to send confirmation email:', emailError);
-        console.error('[Production MongoDB] Email error stack:', emailError.stack);
-  	// Don't fail the booking if email fails
-      }
+      // NOTE: Email sending removed from here - will be sent after payment confirmation
 
       res.status(201).json({
         success: true,
         message: 'Booking created successfully',
         data: {
           _id: result.insertedId,
+          id: result.insertedId, // Add both formats for frontend compatibility
           venue: createdBooking.venue,
           bookingStatus: createdBooking.bookingStatus,
           fieldName: createdBooking.fieldName,
@@ -300,7 +253,7 @@ const productionBookingController = {
           paymentIntentStatus: createdBooking.paymentIntentStatus
         }
       });
-      
+
     } catch (error) {
       console.error('[Production MongoDB] Error creating booking:', error);
       res.status(500).json({
@@ -410,7 +363,7 @@ const productionBookingController = {
     try {
       const { id } = req.params;
       const db = require('mongoose').connection.db;
-    
+      
       const booking = await db.collection('Booking').findOne({ 
         _id: new require('mongodb').ObjectId(id) 
       });
@@ -427,7 +380,7 @@ const productionBookingController = {
       const bookingDateTime = new Date(booking.startTime);
       const timeDiff = bookingDateTime.getTime() - now.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
-    
+      
       const canCancel = hoursDiff > 24 && ['Booked', 'Completed'].includes(booking.bookingStatus);
 
       res.json({
@@ -439,7 +392,7 @@ const productionBookingController = {
         }
       });
     } catch (error) {
-      console.error('Error getting cancellation details:', error);
+      console.error('[Production MongoDB] Error getting cancellation details:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to retrieve booking details',
@@ -452,7 +405,7 @@ const productionBookingController = {
     try {
       const { id } = req.params;
       const db = require('mongoose').connection.db;
-    
+      
       const booking = await db.collection('Booking').findOne({ 
         _id: new require('mongodb').ObjectId(id) 
       });
@@ -469,7 +422,7 @@ const productionBookingController = {
       const bookingDateTime = new Date(booking.startTime);
       const timeDiff = bookingDateTime.getTime() - now.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
-    
+      
       if (hoursDiff <= 24) {
         return res.status(400).json({
           success: false,
@@ -510,7 +463,12 @@ const productionBookingController = {
         customerEmail: booking.customerEmail,
         facilityName: 'Vision Badminton Centre',
         courtName: booking.fieldName,
-        bookingDate: booking.bookingDate.toISOString().split('T')[0],
+        bookingDate: booking.bookingDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
         startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
         bookingId: booking._id.toString()
@@ -518,9 +476,9 @@ const productionBookingController = {
 
       try {
         await emailService.sendCancellationConfirmation(emailData);
-        console.log('Cancellation email sent successfully');
+        console.log('[Production MongoDB] Cancellation email sent successfully');
       } catch (emailError) {
-        console.error('Failed to send cancellation email:', emailError);
+        console.error('[Production MongoDB] Failed to send cancellation email:', emailError);
       }
 
       res.json({
@@ -533,10 +491,101 @@ const productionBookingController = {
       });
 
     } catch (error) {
-      console.error('Error processing cancellation:', error);
+      console.error('[Production MongoDB] Error processing cancellation:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to cancel booking',
+        error: error.message
+      });
+    }
+  },
+
+  // NEW METHOD: Send confirmation email after successful payment
+  confirmPayment: async (req, res) => {
+    try {
+      const { bookingId, paymentIntentId } = req.body;
+      
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Booking ID is required'
+        });
+      }
+
+      const db = require('mongoose').connection.db;
+      
+      // Update booking status to paid
+      const updateResult = await db.collection('Booking').updateOne(
+        { _id: new require('mongodb').ObjectId(bookingId) },
+        { 
+          $set: { 
+            paymentIntentStatus: 'Success',
+            paymentIntentId: paymentIntentId,
+            paidAt: new Date()
+          } 
+        }
+      );
+
+      if (updateResult.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      // Get the updated booking
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new require('mongodb').ObjectId(bookingId) 
+      });
+
+      // Send confirmation email AFTER successful payment
+      const emailData = {
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        facilityName: 'Vision Badminton Centre',
+        courtName: booking.fieldName,
+        bookingDate: booking.bookingDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        }),
+        startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        duration: 60,
+        courtRental: booking.price?.$numberDecimal || '25.00',
+        serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
+        discountAmount: booking.discount?.$numberDecimal || '0.00',
+        subtotal: booking.subtotal?.$numberDecimal || '25.25',
+        tax: booking.tax?.$numberDecimal || '3.28',
+        totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
+        bookingId: booking._id.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${booking._id.toString()}`
+      };
+
+      try {
+        await emailService.sendBookingConfirmation(emailData);
+        console.log('[Production MongoDB] Confirmation email sent after successful payment');
+      } catch (emailError) {
+        console.error('[Production MongoDB] Failed to send confirmation email:', emailError);
+        // Don't fail the payment confirmation if email fails
+      }
+
+      res.json({
+        success: true,
+        message: 'Payment confirmed and email sent',
+        data: {
+          bookingId: bookingId,
+          paymentStatus: 'Success',
+          emailSent: true
+        }
+      });
+
+    } catch (error) {
+      console.error('[Production MongoDB] Error confirming payment:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to confirm payment',
         error: error.message
       });
     }

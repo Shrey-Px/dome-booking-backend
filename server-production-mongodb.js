@@ -128,6 +128,7 @@ app.post('/api/v1/booking/create-booking', productionBookingController.createBoo
 app.get('/api/v1/booking/:id', productionBookingController.getBooking);
 app.patch('/api/v1/booking/:id/cancel', productionBookingController.cancelBooking);
 app.get('/api/v1/bookings', productionBookingController.getAllBookings);
+app.post('/api/v1/booking/confirm-payment', productionBookingController.confirmPayment);
 
 // Discount endpoints
 app.post('/api/v1/discount/apply-discount', productionDiscountController.applyDiscount);
