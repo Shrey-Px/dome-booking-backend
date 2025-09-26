@@ -293,7 +293,7 @@ const productionBookingController = {
       const { id } = req.params;
       const db = require('mongoose').connection.db;
       const booking = await db.collection('Booking').findOne({ 
-        _id: new require('mongodb').ObjectId(id) 
+        _id: new ObjectId(bookingId)
       });
 
       if (!booking) {
@@ -323,7 +323,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const result = await db.collection('Booking').updateOne(
-        { _id: new require('mongodb').ObjectId(id) },
+        { _id: new ObjectId(bookingId) },
         { 
           $set: { 
             bookingStatus: 'Cancelled',
@@ -340,7 +340,7 @@ const productionBookingController = {
       }
 
       const updatedBooking = await db.collection('Booking').findOne({ 
-        _id: new require('mongodb').ObjectId(id) 
+        _id: new ObjectId(bookingId) 
       });
 
       res.json({
@@ -365,7 +365,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const booking = await db.collection('Booking').findOne({ 
-        _id: new require('mongodb').ObjectId(id) 
+        _id: new ObjectId(bookingId)
       });
 
       if (!booking) {
@@ -407,7 +407,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const booking = await db.collection('Booking').findOne({ 
-        _id: new require('mongodb').ObjectId(id) 
+        _id: new ObjectId(bookingId) 
       });
 
       if (!booking) {
@@ -440,7 +440,7 @@ const productionBookingController = {
 
       // Cancel the booking
       const result = await db.collection('Booking').updateOne(
-        { _id: new require('mongodb').ObjectId(id) },
+        { _id: new ObjectId(bookingId) },
         { 
           $set: { 
             bookingStatus: 'Cancelled',
@@ -516,7 +516,7 @@ const productionBookingController = {
       
       // Update booking status to paid
       const updateResult = await db.collection('Booking').updateOne(
-        { _id: new require('mongodb').ObjectId(bookingId) },
+        { _id: new ObjectId(bookingId) },
         { 
           $set: { 
             paymentIntentStatus: 'Success',
@@ -535,7 +535,7 @@ const productionBookingController = {
 
       // Get the updated booking
       const booking = await db.collection('Booking').findOne({ 
-        _id: new require('mongodb').ObjectId(bookingId) 
+        _id: new ObjectId(bookingId)
       });
 
       // Send confirmation email AFTER successful payment
