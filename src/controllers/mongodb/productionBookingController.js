@@ -293,7 +293,7 @@ const productionBookingController = {
       const { id } = req.params;
       const db = require('mongoose').connection.db;
       const booking = await db.collection('Booking').findOne({ 
-        _id: new ObjectId(bookingId)
+        _id: new ObjectId(id)
       });
 
       if (!booking) {
@@ -323,7 +323,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const result = await db.collection('Booking').updateOne(
-        { _id: new ObjectId(bookingId) },
+        { _id: new ObjectId(id) },
         { 
           $set: { 
             bookingStatus: 'Cancelled',
@@ -340,7 +340,7 @@ const productionBookingController = {
       }
 
       const updatedBooking = await db.collection('Booking').findOne({ 
-        _id: new ObjectId(bookingId) 
+        _id: new ObjectId(id)
       });
 
       res.json({
@@ -365,7 +365,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const booking = await db.collection('Booking').findOne({ 
-        _id: new ObjectId(bookingId)
+        _id: new ObjectId(id)
       });
 
       if (!booking) {
@@ -407,7 +407,7 @@ const productionBookingController = {
       const db = require('mongoose').connection.db;
       
       const booking = await db.collection('Booking').findOne({ 
-        _id: new ObjectId(bookingId) 
+        _id: new ObjectId(id) 
       });
 
       if (!booking) {
@@ -440,7 +440,7 @@ const productionBookingController = {
 
       // Cancel the booking
       const result = await db.collection('Booking').updateOne(
-        { _id: new ObjectId(bookingId) },
+        { _id: new ObjectId(id) },
         { 
           $set: { 
             bookingStatus: 'Cancelled',
