@@ -1,4 +1,4 @@
-// src/services/emailService.js - SendGrid Implementation
+// src/services/emailService.js - SendGrid Implementation with Fixed Date Handling
 const sgMail = require('@sendgrid/mail');
 
 class EmailService {
@@ -11,7 +11,7 @@ class EmailService {
     }
   }
 
-  function formatDateForEmail(dateValue) {
+  formatDateForEmail(dateValue) {
     try {
       let date;
       if (typeof dateValue === 'string' && dateValue.includes('-')) {
@@ -21,7 +21,7 @@ class EmailService {
       } else {
         date = new Date(dateValue);
       }
-    
+      
       return date.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
@@ -35,10 +35,10 @@ class EmailService {
     }
   }
 
-  function formatTimeForEmail(timeValue, dateValue = null) {
+  formatTimeForEmail(timeValue, dateValue = null) {
     try {
       let date;
-    
+      
       if (timeValue instanceof Date) {
         // If it's already a Date object, use it directly
         date = new Date(timeValue);
@@ -56,7 +56,7 @@ class EmailService {
       } else {
         date = new Date(timeValue);
       }
-    
+      
       return date.toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
@@ -69,7 +69,6 @@ class EmailService {
     }
   }
 
-  // Update your sendBookingConfirmation function to use these utilities:
   async sendBookingConfirmation(bookingData) {
     try {
       if (!process.env.SENDGRID_API_KEY) {
@@ -78,12 +77,12 @@ class EmailService {
       }
 
       console.log('Sending confirmation email via SendGrid:', bookingData.customerEmail);
-    
+      
       // Use the fixed date/time formatting
-      const formattedDate = formatDateForEmail(bookingData.bookingDate);
-      const formattedStartTime = formatTimeForEmail(bookingData.startTime, bookingData.bookingDate);
-      const formattedEndTime = formatTimeForEmail(bookingData.endTime, bookingData.bookingDate);
-    
+      const formattedDate = this.formatDateForEmail(bookingData.bookingDate);
+      const formattedStartTime = this.formatTimeForEmail(bookingData.startTime, bookingData.bookingDate);
+      const formattedEndTime = this.formatTimeForEmail(bookingData.endTime, bookingData.bookingDate);
+      
       console.log('Email date formatting:', {
         originalDate: bookingData.bookingDate,
         originalStartTime: bookingData.startTime,
@@ -92,7 +91,7 @@ class EmailService {
         formattedStartTime,
         formattedEndTime
       });
-
+      
       const htmlTemplate = `
         <!DOCTYPE html>
         <html>
@@ -126,11 +125,11 @@ class EmailService {
               <h1>D<span style="color: #EF4444;">O</span>ME</h1>
               <h2>Booking Confirmation</h2>
             </div>
-          
+            
             <div class="content">
               <p>Dear ${bookingData.customerName},</p>
               <p>Your booking has been confirmed! Here are your booking details:</p>
-            
+              
               <div class="booking-details">
                 <h3>Booking Details</h3>
                 <p><strong>Facility:</strong> ${bookingData.facilityName}</p>
@@ -164,7 +163,7 @@ class EmailService {
                     <span>Subtotal:</span>
                     <span>$${bookingData.subtotal}</span>
                   </div>
-          
+            
                   <div class="amount-row">
                     <span>Tax (13% HST):</span>
                     <span>$${bookingData.tax}</span>
@@ -183,7 +182,7 @@ class EmailService {
 
               <p><strong>Cancellation Policy:</strong> Bookings can be cancelled up to 24 hours before the scheduled time.</p>
             </div>
-          
+            
             <div class="footer">
               <p>Thank you for choosing DOME Sports Facility</p>
               <p>If you have any questions, please contact us at info@dafloinnovations.com</p>
@@ -203,7 +202,7 @@ class EmailService {
       const result = await sgMail.send(msg);
       console.log('SendGrid confirmation email sent successfully:', result[0].statusCode);
       return { messageId: result[0].headers['x-message-id'] };
-    
+      
     } catch (error) {
       console.error('Failed to send confirmation email via SendGrid:', error);
       if (error.response) {
