@@ -377,11 +377,39 @@ const productionBookingController = {
 
       // Check if booking can be cancelled (24 hours rule)
       const now = new Date();
-      const bookingDateTime = new Date(booking.startTime);
+
+      // Handle different date formats from mobile vs web bookings
+      let bookingDateTime;
+      if (booking.startTime instanceof Date) {
+        // Mobile booking format - startTime is a Date object
+        bookingDateTime = new Date(booking.startTime);
+      } else {
+        // Web booking format - combine bookingDate and startTime string
+        const bookingDate = new Date(booking.bookingDate);
+        const [hours, minutes] = booking.startTime.split(':').map(Number);
+        bookingDateTime = new Date(bookingDate);
+        bookingDateTime.setHours(hours, minutes, 0, 0);
+      }
+
       const timeDiff = bookingDateTime.getTime() - now.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
       
-      const canCancel = hoursDiff > 24 && ['Booked', 'Completed'].includes(booking.bookingStatus);
+      const canCancel = hoursDiff > 24 && ['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status);
+
+      // Format the response data consistently
+      const responseBooking = {
+        ...booking,
+        // Ensure consistent date/time format for frontend
+        bookingDate: booking.bookingDate || bookingDateTime,
+        startTime: booking.startTime instanceof Date ? booking.startTime : bookingDateTime,
+        endTime: booking.endTime instanceof Date ? booking.endTime : (() => {
+          const endTime = new Date(bookingDateTime);
+          const [endHours, endMinutes] = (booking.endTime || '12:00').split(':').map(Number);
+          endTime.setHours(endHours, endMinutes, 0, 0);
+          return endTime;
+        })(),
+        fieldName: booking.fieldName || `Court ${booking.courtNumber}`
+      };	
 
       res.json({
         success: true,
