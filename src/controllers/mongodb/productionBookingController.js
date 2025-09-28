@@ -37,6 +37,7 @@ const productionBookingController = {
       }
 
       // Check if venue exists
+      const Venue = require('../../models/mongodb/Venue');
       const venue = await Venue.findById(facilityId);
       if (!venue) {
         return res.status(404).json({
@@ -48,14 +49,6 @@ const productionBookingController = {
 
       console.log('[Production MongoDB] Venue found:', venue.fullName);
 
-      // For MongoDB time comparisons, create Date objects only for conflict checking
-      const [year, month, day] = bookingDate.split('-').map(Number);
-      const [startHour, startMin] = startTime.split(':').map(Number);
-      const [endHour, endMin] = endTime.split(':').map(Number);
-
-      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin);
-      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin);
-
       // SIMPLIFIED: Keep dates and times as strings to avoid timezone issues
       const bookingDateStr = bookingDate; // Keep as "2025-10-04"
       const startTimeStr = startTime;     // Keep as "08:00"
@@ -65,6 +58,24 @@ const productionBookingController = {
         bookingDate: bookingDateStr,
         startTime: startTimeStr,
         endTime: endTimeStr
+      });
+
+      // For MongoDB time comparisons, create Date objects only for conflict checking
+      const [year, month, day] = bookingDate.split('-').map(Number);
+      const [startHour, startMin] = startTime.split(':').map(Number);
+      const [endHour, endMin] = endTime.split(':').map(Number);
+
+      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin);
+      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin);
+      const bookingDateOnly = new Date(year, month - 1, day, 12, 0, 0); // FIXED: Added back for MongoDB storage
+
+      console.log('Date parsing for conflict checking:', {
+        input: { bookingDate, startTime, endTime },
+        parsed: {
+          bookingStartTime: bookingStartTime.toString(),
+          bookingEndTime: bookingEndTime.toString(),
+          bookingDateOnly: bookingDateOnly.toString()
+        }
       });
 
       // Check for time conflicts
@@ -164,15 +175,15 @@ const productionBookingController = {
         finalTotal: finalTotal.toFixed(2)
       });
 
-      // Create booking data with new pricing structure
+      // Create booking data with STRING dates/times AND Date objects for compatibility
       const bookingData = {
         venue: new ObjectId(facilityId),
         owner_id: "685a8e63a1e45e1eb270c9cb",
         bookingStatus: 'Booked',
         fieldName: `Court ${courtNumber}`,
         gameName: 'Badminton',
-
-        // Store as STRINGS to avoid timezone conversion
+        
+        // Store as STRINGS to avoid timezone conversion (NEW)
         bookingDateString: bookingDateStr,  // "2025-10-04"
         startTimeString: startTimeStr,      // "08:00"
         endTimeString: endTimeStr,          // "09:00"
@@ -180,7 +191,7 @@ const productionBookingController = {
         // Keep original Date objects for mobile app compatibility
         startTime: bookingStartTime,
         endTime: bookingEndTime,
-        bookingDate: new Date(year, month - 1, day, 12, 0, 0), // Noon to avoid timezone shifts
+        bookingDate: bookingDateOnly,
         
         // Updated pricing fields with new structure
         price: { $numberDecimal: courtRental.toFixed(2) }, // $25.00
@@ -201,11 +212,6 @@ const productionBookingController = {
         
         // Time fields
         duration: { $numberDecimal: ((duration || 60) / 60).toString() },
-        startTime: bookingStartTime,
-        endTime: bookingEndTime,
-        bookingDate: bookingDateOnly,
-        
-        // Payment and booking details
         currency: "cad",
         paymentIntentStatus: "Pending", // Changed from "Success" since payment hasn't happened yet
         cartId: require('crypto').randomUUID(),
@@ -234,7 +240,11 @@ const productionBookingController = {
         startTime: bookingData.startTime,
         endTime: bookingData.endTime,
         bookingDate: bookingData.bookingDate,
-        player: bookingData.player
+        player: bookingData.player,
+        // Show string fields too
+        bookingDateString: bookingData.bookingDateString,
+        startTimeString: bookingData.startTimeString,
+        endTimeString: bookingData.endTimeString
       });
 
       // Insert booking
