@@ -54,16 +54,16 @@ const productionBookingController = {
       const [endHour, endMin] = endTime.split(':').map(Number);
 
       // Create proper date objects in local timezone
-      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin);
-      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin);
-      const bookingDateOnly = new Date(year, month - 1, day);
+      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin, 0, 0);
+      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin, 0, 0);
+      const bookingDateOnly = new Date(year, month - 1, day, 12, 0, 0, 0); // Set to noon to avoid timezone shifts
 
-      console.log('Date parsing:', {
+      console.log('FIXED Date parsing:', {
         input: { bookingDate, startTime, endTime },
         parsed: {
-          bookingStartTime: bookingStartTime.toISOString(),
-          bookingEndTime: bookingEndTime.toISOString(),
-          bookingDateOnly: bookingDateOnly.toISOString()
+          bookingStartTime: bookingStartTime.toString(), // Use toString() to see local time
+          bookingEndTime: bookingEndTime.toString(),
+          bookingDateOnly: bookingDateOnly.toString()
         }
       });
 
@@ -566,20 +566,46 @@ const productionBookingController = {
         _id: new ObjectId(bookingId)
       });
 
-      // Send confirmation email AFTER successful payment
+      // FIXED: Extract original booking date from the stored data
+      let originalBookingDate;
+      if (booking.bookingDate) {
+        // If bookingDate exists, use it
+        originalBookingDate = booking.bookingDate;
+      } else if (booking.startTime instanceof Date) {
+        // Extract date from startTime if bookingDate doesn't exist
+        const startTime = new Date(booking.startTime);
+        originalBookingDate = `${startTime.getFullYear()}-${(startTime.getMonth() + 1).toString().padStart(2, '0')}-${startTime.getDate().toString().padStart(2, '0')}`;
+      }
+
+      // FIXED: Extract original time strings from booking
+      let originalStartTime, originalEndTime;
+      if (booking.startTime instanceof Date) {
+        // Format Date objects to time strings
+        originalStartTime = `${booking.startTime.getHours().toString().padStart(2, '0')}:${booking.startTime.getMinutes().toString().padStart(2, '0')}`;
+        originalEndTime = `${booking.endTime.getHours().toString().padStart(2, '0')}:${booking.endTime.getMinutes().toString().padStart(2, '0')}`;
+      } else {
+        // Use string times directly
+        originalStartTime = booking.startTime;
+        originalEndTime = booking.endTime;
+      }
+
+      console.log('FIXED Email data preparation:', {
+        originalBookingDate,
+        originalStartTime,
+        originalEndTime,
+        bookingStartTime: booking.startTime,
+        bookingEndTime: booking.endTime
+      });
+
+      // Send confirmation email AFTER successful payment with FIXED date handling
       const emailData = {
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
         facilityName: 'Vision Badminton Centre',
         courtName: booking.fieldName,
-        bookingDate: booking.bookingDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }),
-        startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        bookingDate: originalBookingDate, // Use extracted date
+        startTime: originalStartTime,     // Use extracted time
+        endTime: originalEndTime,         // Use extracted time
         duration: 60,
         courtRental: booking.price?.$numberDecimal || '25.00',
         serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
