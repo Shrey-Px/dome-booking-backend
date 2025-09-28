@@ -48,23 +48,23 @@ const productionBookingController = {
 
       console.log('[Production MongoDB] Venue found:', venue.fullName);
 
-      // Parse date components properly to avoid timezone issues
+      // For MongoDB time comparisons, create Date objects only for conflict checking
       const [year, month, day] = bookingDate.split('-').map(Number);
       const [startHour, startMin] = startTime.split(':').map(Number);
       const [endHour, endMin] = endTime.split(':').map(Number);
 
-      // Create proper date objects in local timezone
-      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin, 0, 0);
-      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin, 0, 0);
-      const bookingDateOnly = new Date(year, month - 1, day, 12, 0, 0, 0); // Set to noon to avoid timezone shifts
+      const bookingStartTime = new Date(year, month - 1, day, startHour, startMin);
+      const bookingEndTime = new Date(year, month - 1, day, endHour, endMin);
 
-      console.log('FIXED Date parsing:', {
-        input: { bookingDate, startTime, endTime },
-        parsed: {
-          bookingStartTime: bookingStartTime.toString(), // Use toString() to see local time
-          bookingEndTime: bookingEndTime.toString(),
-          bookingDateOnly: bookingDateOnly.toString()
-        }
+      // SIMPLIFIED: Keep dates and times as strings to avoid timezone issues
+      const bookingDateStr = bookingDate; // Keep as "2025-10-04"
+      const startTimeStr = startTime;     // Keep as "08:00"
+      const endTimeStr = endTime;         // Keep as "09:00"
+
+      console.log('SIMPLIFIED Date handling (strings only):', {
+        bookingDate: bookingDateStr,
+        startTime: startTimeStr,
+        endTime: endTimeStr
       });
 
       // Check for time conflicts
@@ -171,6 +171,16 @@ const productionBookingController = {
         bookingStatus: 'Booked',
         fieldName: `Court ${courtNumber}`,
         gameName: 'Badminton',
+
+        // Store as STRINGS to avoid timezone conversion
+        bookingDateString: bookingDateStr,  // "2025-10-04"
+        startTimeString: startTimeStr,      // "08:00"
+        endTimeString: endTimeStr,          // "09:00"
+        
+        // Keep original Date objects for mobile app compatibility
+        startTime: bookingStartTime,
+        endTime: bookingEndTime,
+        bookingDate: new Date(year, month - 1, day, 12, 0, 0), // Noon to avoid timezone shifts
         
         // Updated pricing fields with new structure
         price: { $numberDecimal: courtRental.toFixed(2) }, // $25.00
@@ -375,46 +385,62 @@ const productionBookingController = {
         });
       }
 
-      // Check if booking can be cancelled (24 hours rule)
+      console.log('Retrieved booking for cancellation:', booking);
+
+      // SIMPLIFIED: Create consistent response using string fields
+      const responseBooking = {
+        _id: booking._id,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        fieldName: booking.fieldName,
+        
+        // Use string fields for consistent display
+        bookingDate: booking.bookingDateString || 'Unknown date',
+        startTime: booking.startTimeString || 'Unknown time', 
+        endTime: booking.endTimeString || 'Unknown time',
+        
+        bookingStatus: booking.bookingStatus || booking.status
+      };
+
+      // Calculate if booking can be cancelled (24 hours rule)
       const now = new Date();
-
-      // Handle different date formats from mobile vs web bookings
       let bookingDateTime;
-      if (booking.startTime instanceof Date) {
-        // Mobile booking format - startTime is a Date object
-        bookingDateTime = new Date(booking.startTime);
-      } else {
-        // Web booking format - combine bookingDate and startTime string
-        const bookingDate = new Date(booking.bookingDate);
-        const [hours, minutes] = booking.startTime.split(':').map(Number);
-        bookingDateTime = new Date(bookingDate);
-        bookingDateTime.setHours(hours, minutes, 0, 0);
+      
+      try {
+        // Try to create a proper Date object for comparison
+        if (booking.bookingDateString && booking.startTimeString) {
+          const [year, month, day] = booking.bookingDateString.split('-').map(Number);
+          const [hours, minutes] = booking.startTimeString.split(':').map(Number);
+          bookingDateTime = new Date(year, month - 1, day, hours, minutes);
+        } else if (booking.startTime instanceof Date) {
+          bookingDateTime = new Date(booking.startTime);
+        } else {
+          // Fallback - assume it can be cancelled
+          bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000); // 25 hours from now
+        }
+      } catch (error) {
+        console.error('Error parsing booking date/time:', error);
+        // Default to allowing cancellation if we can't parse
+        bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
       }
-
+      
       const timeDiff = bookingDateTime.getTime() - now.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
       
       const canCancel = hoursDiff > 24 && ['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status);
 
-      // Format the response data consistently
-      const responseBooking = {
-        ...booking,
-        // Ensure consistent date/time format for frontend
-        bookingDate: booking.bookingDate || bookingDateTime,
-        startTime: booking.startTime instanceof Date ? booking.startTime : bookingDateTime,
-        endTime: booking.endTime instanceof Date ? booking.endTime : (() => {
-          const endTime = new Date(bookingDateTime);
-          const [endHours, endMinutes] = (booking.endTime || '12:00').split(':').map(Number);
-          endTime.setHours(endHours, endMinutes, 0, 0);
-          return endTime;
-        })(),
-        fieldName: booking.fieldName || `Court ${booking.courtNumber}`
-      };	
+      console.log('Cancellation calculation:', {
+        now: now.toString(),
+        bookingDateTime: bookingDateTime.toString(),
+        hoursDiff,
+        canCancel,
+        bookingStatus: booking.bookingStatus || booking.status
+      });
 
       res.json({
         success: true,
         data: {
-          booking,
+          booking: responseBooking,
           canCancel,
           hoursUntilBooking: Math.max(0, hoursDiff)
         }
@@ -445,9 +471,26 @@ const productionBookingController = {
         });
       }
 
-      // Check 24-hour rule
+
+      // Check 24-hour rule (same logic as getCancellationDetails)
       const now = new Date();
-      const bookingDateTime = new Date(booking.startTime);
+      let bookingDateTime;
+      
+      try {
+        if (booking.bookingDateString && booking.startTimeString) {
+          const [year, month, day] = booking.bookingDateString.split('-').map(Number);
+          const [hours, minutes] = booking.startTimeString.split(':').map(Number);
+          bookingDateTime = new Date(year, month - 1, day, hours, minutes);
+        } else if (booking.startTime instanceof Date) {
+          bookingDateTime = new Date(booking.startTime);
+        } else {
+          bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+        }
+      } catch (error) {
+        console.error('Error parsing booking date/time for cancellation:', error);
+        bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+      }
+      
       const timeDiff = bookingDateTime.getTime() - now.getTime();
       const hoursDiff = timeDiff / (1000 * 60 * 60);
       
@@ -459,7 +502,7 @@ const productionBookingController = {
         });
       }
 
-      if (!['Booked', 'Completed'].includes(booking.bookingStatus)) {
+      if (!['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status)) {
         return res.status(400).json({
           success: false,
           message: 'This booking cannot be cancelled'
@@ -485,22 +528,22 @@ const productionBookingController = {
         });
       }
 
-      // Send cancellation email
+      // SIMPLIFIED: Send cancellation email with string data
       const emailData = {
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
         facilityName: 'Vision Badminton Centre',
         courtName: booking.fieldName,
-        bookingDate: booking.bookingDate.toLocaleDateString('en-US', {
-          weekday: 'long',
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric'
-        }),
-        startTime: booking.startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        endTime: booking.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+        
+        // Use string fields for consistent display
+        bookingDate: booking.bookingDateString || 'Unknown date',
+        startTime: booking.startTimeString || 'Unknown time',
+        endTime: booking.endTimeString || 'Unknown time',
+        
         bookingId: booking._id.toString()
       };
+
+      console.log('SIMPLIFIED Cancellation email data:', emailData);
 
       try {
         await emailService.sendCancellationConfirmation(emailData);
@@ -508,7 +551,7 @@ const productionBookingController = {
       } catch (emailError) {
         console.error('[Production MongoDB] Failed to send cancellation email:', emailError);
       }
-
+         
       res.json({
         success: true,
         message: 'Booking cancelled successfully',
@@ -566,36 +609,7 @@ const productionBookingController = {
         _id: new ObjectId(bookingId)
       });
 
-      // FIXED: Extract original booking date from the stored data
-      let originalBookingDate;
-      if (booking.bookingDate) {
-        // If bookingDate exists, use it
-        originalBookingDate = booking.bookingDate;
-      } else if (booking.startTime instanceof Date) {
-        // Extract date from startTime if bookingDate doesn't exist
-        const startTime = new Date(booking.startTime);
-        originalBookingDate = `${startTime.getFullYear()}-${(startTime.getMonth() + 1).toString().padStart(2, '0')}-${startTime.getDate().toString().padStart(2, '0')}`;
-      }
-
-      // FIXED: Extract original time strings from booking
-      let originalStartTime, originalEndTime;
-      if (booking.startTime instanceof Date) {
-        // Format Date objects to time strings
-        originalStartTime = `${booking.startTime.getHours().toString().padStart(2, '0')}:${booking.startTime.getMinutes().toString().padStart(2, '0')}`;
-        originalEndTime = `${booking.endTime.getHours().toString().padStart(2, '0')}:${booking.endTime.getMinutes().toString().padStart(2, '0')}`;
-      } else {
-        // Use string times directly
-        originalStartTime = booking.startTime;
-        originalEndTime = booking.endTime;
-      }
-
-      console.log('FIXED Email data preparation:', {
-        originalBookingDate,
-        originalStartTime,
-        originalEndTime,
-        bookingStartTime: booking.startTime,
-        bookingEndTime: booking.endTime
-      });
+      console.log('Retrieved booking for email:', booking);
 
       // Send confirmation email AFTER successful payment with FIXED date handling
       const emailData = {
@@ -603,9 +617,12 @@ const productionBookingController = {
         customerEmail: booking.customerEmail,
         facilityName: 'Vision Badminton Centre',
         courtName: booking.fieldName,
-        bookingDate: originalBookingDate, // Use extracted date
-        startTime: originalStartTime,     // Use extracted time
-        endTime: originalEndTime,         // Use extracted time
+
+        // Use string fields first, with fallbacks
+        bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
+        startTime: booking.startTimeString || booking.startTime || 'Unknown time',
+        endTime: booking.endTimeString || booking.endTime || 'Unknown time',
+        
         duration: 60,
         courtRental: booking.price?.$numberDecimal || '25.00',
         serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
@@ -616,6 +633,8 @@ const productionBookingController = {
         bookingId: booking._id.toString(),
         cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${booking._id.toString()}`
       };
+
+      console.log('SIMPLIFIED Email data being sent:', emailData);
 
       try {
         await emailService.sendBookingConfirmation(emailData);

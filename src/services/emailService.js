@@ -1,4 +1,4 @@
-// src/services/emailService.js - SendGrid Implementation with Fixed Date Handling
+// src/services/emailService.js - Simplified string-based approach
 const sgMail = require('@sendgrid/mail');
 
 class EmailService {
@@ -11,61 +11,35 @@ class EmailService {
     }
   }
 
-  formatDateForEmail(dateValue) {
+  // SIMPLIFIED: Format date string "2025-10-04" to "Saturday, October 4, 2025"
+  formatDateString(dateStr) {
     try {
-      let date;
-      if (typeof dateValue === 'string' && dateValue.includes('-')) {
-        // If it's a date string like "2025-10-04", parse it carefully
-        const [year, month, day] = dateValue.split('-').map(Number);
-        date = new Date(year, month - 1, day); // Local timezone
-      } else {
-        date = new Date(dateValue);
-      }
+      const [year, month, day] = dateStr.split('-').map(Number);
+      const date = new Date(year, month - 1, day);
       
       return date.toLocaleDateString('en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
-        day: 'numeric',
-        timeZone: 'America/Toronto' // Your local timezone
+        day: 'numeric'
       });
     } catch (error) {
       console.error('Date formatting error:', error);
-      return 'Invalid date';
+      return dateStr;
     }
   }
 
-  formatTimeForEmail(timeValue, dateValue = null) {
+  // SIMPLIFIED: Format time string "08:00" to "8:00 AM"
+  formatTimeString(timeStr) {
     try {
-      let date;
+      const [hours, minutes] = timeStr.split(':').map(Number);
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const displayHour = hours % 12 || 12;
       
-      if (timeValue instanceof Date) {
-        // If it's already a Date object, use it directly
-        date = new Date(timeValue);
-      } else if (typeof timeValue === 'string' && timeValue.includes(':')) {
-        // If it's a time string like "10:00", combine with date
-        const [hours, minutes] = timeValue.split(':').map(Number);
-        if (dateValue && typeof dateValue === 'string') {
-          const [year, month, day] = dateValue.split('-').map(Number);
-          date = new Date(year, month - 1, day, hours, minutes);
-        } else {
-          // Create today's date with the time
-          date = new Date();
-          date.setHours(hours, minutes, 0, 0);
-        }
-      } else {
-        date = new Date(timeValue);
-      }
-      
-      return date.toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'America/Toronto' // Your local timezone
-      });
+      return `${displayHour}:${minutes.toString().padStart(2, '0')} ${period}`;
     } catch (error) {
       console.error('Time formatting error:', error);
-      return 'Invalid time';
+      return timeStr;
     }
   }
 
@@ -77,19 +51,24 @@ class EmailService {
       }
 
       console.log('Sending confirmation email via SendGrid:', bookingData.customerEmail);
+      console.log('Email data received:', bookingData);
       
-      // Use the fixed date/time formatting
-      const formattedDate = this.formatDateForEmail(bookingData.bookingDate);
-      const formattedStartTime = this.formatTimeForEmail(bookingData.startTime, bookingData.bookingDate);
-      const formattedEndTime = this.formatTimeForEmail(bookingData.endTime, bookingData.bookingDate);
+      // Use string formatting for consistent display
+      const formattedDate = this.formatDateString(bookingData.bookingDate);
+      const formattedStartTime = this.formatTimeString(bookingData.startTime);
+      const formattedEndTime = this.formatTimeString(bookingData.endTime);
       
-      console.log('Email date formatting:', {
-        originalDate: bookingData.bookingDate,
-        originalStartTime: bookingData.startTime,
-        originalEndTime: bookingData.endTime,
-        formattedDate,
-        formattedStartTime,
-        formattedEndTime
+      console.log('Formatted for email:', {
+        original: {
+          date: bookingData.bookingDate,
+          startTime: bookingData.startTime,
+          endTime: bookingData.endTime
+        },
+        formatted: {
+          date: formattedDate,
+          startTime: formattedStartTime,
+          endTime: formattedEndTime
+        }
       });
       
       const htmlTemplate = `
@@ -220,6 +199,12 @@ class EmailService {
       }
 
       console.log('Sending cancellation email via SendGrid:', bookingData.customerEmail);
+      console.log('Cancellation email data received:', bookingData);
+      
+      // Use string formatting for consistent display
+      const formattedDate = this.formatDateString(bookingData.bookingDate);
+      const formattedStartTime = this.formatTimeString(bookingData.startTime);
+      const formattedEndTime = this.formatTimeString(bookingData.endTime);
       
       const htmlTemplate = `
         <!DOCTYPE html>
@@ -233,7 +218,6 @@ class EmailService {
             .booking-details { background: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
             .cancellation-notice { background: #fef2f2; padding: 15px; border-radius: 6px; margin: 15px 0; border-left: 4px solid #DC2626; }
             .footer { text-align: center; color: #666; font-size: 12px; margin-top: 20px; }
-            .amount-row { display: flex; justify-content: space-between; margin: 8px 0; padding: 2px 0; }
             .cancelled-status { color: #DC2626; font-weight: bold; font-size: 18px; text-align: center; margin: 20px 0; }
           </style>
         </head>
@@ -256,17 +240,15 @@ class EmailService {
                 <h3>Cancelled Booking Details</h3>
                 <p><strong>Facility:</strong> ${bookingData.facilityName}</p>
                 <p><strong>Court:</strong> ${bookingData.courtName}</p>
-                <p><strong>Date:</strong> ${bookingData.bookingDate}</p>
-                <p><strong>Time:</strong> ${bookingData.startTime} - ${bookingData.endTime}</p>
+                <p><strong>Date:</strong> ${formattedDate}</p>
+                <p><strong>Time:</strong> ${formattedStartTime} - ${formattedEndTime}</p>
                 <p><strong>Duration:</strong> ${bookingData.duration || 60} minutes</p>
                 <p><strong>Booking ID:</strong> ${bookingData.bookingId}</p>
                 <p><strong>Cancellation Date:</strong> ${new Date().toLocaleDateString('en-US', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
-                  day: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
+                  day: 'numeric'
                 })}</p>
               </div>
 
