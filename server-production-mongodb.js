@@ -3,6 +3,9 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
+const TenantMiddleware = require('./src/middleware/tenant');
+const tenantAvailabilityController = require('./src/controllers/mongodb/tenantAvailabilityController');
+const Facility = require('./src/models/mongodb/Facility');
 
 // Import MongoDB connection and controllers
 const { connectMongoDB, mongoose } = require('./src/config/mongodb');
@@ -117,27 +120,132 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Production API Routes - using v1 for frontend compatibility
-app.get('/api/v1/availability', productionAvailabilityController.getAvailability);
+// Update existing routes to be tenant-aware
+// Replace the existing availability route
+app.get('/api/v1/availability', 
+  TenantMiddleware.withDefaultTenant,  // This ensures backward compatibility
+  tenantAvailabilityController.getAvailability
+);
+
+// Add new tenant-specific routes
+app.get('/api/v1/tenant/availability', 
+  TenantMiddleware.resolveTenant,
+  tenantAvailabilityController.getAvailability
+);
 
 // Add this route mounting near other route definitions
 app.use('/api/v1/cancellation', cancellationRoutes);
 
 // Booking endpoints
-app.post('/api/v1/booking/create-booking', productionBookingController.createBooking);
-app.get('/api/v1/booking/:id', productionBookingController.getBooking);
-app.patch('/api/v1/booking/:id/cancel', productionBookingController.cancelBooking);
+
+// Update booking routes to be tenant-aware
+app.post('/api/v1/booking/create-booking', 
+  TenantMiddleware.withDefaultTenant,
+  productionBookingController.createBooking
+);
+
+app.post('/api/v1/tenant/booking/create-booking',
+  TenantMiddleware.resolveTenant,
+  productionBookingController.createBooking
+);
+
+// Update other booking endpoints similarly
+app.get('/api/v1/booking/:id',
+  TenantMiddleware.tryResolveTenant,
+  productionBookingController.getBooking
+);
+
+// Update cancellation routes
+app.use('/api/v1/cancellation',
+  TenantMiddleware.tryResolveTenant,
+  cancellationRoutes
+);
+
 app.get('/api/v1/bookings', productionBookingController.getAllBookings);
-app.post('/api/v1/booking/confirm-payment', productionBookingController.confirmPayment);
+
+app.post('/api/v1/booking/confirm-payment',
+  TenantMiddleware.tryResolveTenant,
+  productionBookingController.confirmPayment
+);
 
 // Discount endpoints
-app.post('/api/v1/discount/apply-discount', productionDiscountController.applyDiscount);
-app.get('/api/v1/discounts', productionDiscountController.getAllDiscounts);
+
+// Update discount routes
+app.post('/api/v1/discount/apply-discount',
+  TenantMiddleware.withDefaultTenant,
+  productionDiscountController.applyDiscount
+);
+
+app.post('/api/v1/tenant/discount/apply-discount',
+  TenantMiddleware.resolveTenant,
+  productionDiscountController.applyDiscount
+);
 
 // Payment endpoints
-app.post('/api/v1/payment/create-payment-intent', productionPaymentController.createPaymentIntent);
-app.post('/api/v1/payment/process-payment', productionPaymentController.processPayment);
+// Update payment routes
+app.post('/api/v1/payment/create-payment-intent',
+  TenantMiddleware.tryResolveTenant,
+  productionPaymentController.createPaymentIntent
+);
+
+app.post('/api/v1/payment/process-payment',
+  TenantMiddleware.tryResolveTenant,
+  productionPaymentController.processPayment
+);
+
 app.post('/api/v1/payment/webhook', express.raw({ type: 'application/json' }), productionPaymentController.handleWebhook);
+
+// Add facility management endpoints
+app.get('/api/v1/facilities', async (req, res) => {
+  try {
+    const facilities = await Facility.getActiveFacilities();
+    res.json({
+      success: true,
+      data: facilities.map(facility => ({
+        slug: facility.slug,
+        name: facility.name,
+        description: facility.description,
+        branding: facility.branding,
+        totalCourts: facility.totalCourts,
+        active: facility.active
+      }))
+    });
+  } catch (error) {
+    console.error('Error fetching facilities:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch facilities',
+      error: error.message
+    });
+  }
+});
+
+app.get('/api/v1/facilities/:slug', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const facility = await Facility.findBySlug(slug);
+    
+    if (!facility) {
+      return res.status(404).json({
+        success: false,
+        message: 'Facility not found',
+        slug
+      });
+    }
+
+    res.json({
+      success: true,
+      data: facility
+    });
+  } catch (error) {
+    console.error('Error fetching facility:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch facility',
+      error: error.message
+    });
+  }
+});
 
 // Error handling middleware
 app.use((error, req, res, next) => {
