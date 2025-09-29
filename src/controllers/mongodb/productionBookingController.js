@@ -542,15 +542,20 @@ const productionBookingController = {
       const emailData = {
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
-        facilityName: 'Vision Badminton Centre',
-        courtName: booking.fieldName,
-        
-        // Use string fields for consistent display
-        bookingDate: booking.bookingDateString || 'Unknown date',
-        startTime: booking.startTimeString || 'Unknown time',
-        endTime: booking.endTimeString || 'Unknown time',
-        
-        bookingId: booking._id.toString()
+  	facilityName: 'Vision Badminton Centre',
+  	courtName: booking.fieldName,
+  	bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
+  	startTime: booking.startTimeString || booking.startTime || 'Unknown time',
+  	endTime: booking.endTimeString || booking.endTime || 'Unknown time',
+  	duration: 60,
+  	courtRental: booking.price?.$numberDecimal || '25.00',
+  	serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
+  	discountAmount: booking.discount?.$numberDecimal || '0.00',
+  	subtotal: booking.subtotal?.$numberDecimal || '25.25',
+  	tax: booking.tax?.$numberDecimal || '3.28',
+  	totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
+  	bookingId: booking._id.toString(),
+  	cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}` // FIXED
       };
 
       console.log('SIMPLIFIED Cancellation email data:', emailData);
@@ -641,7 +646,7 @@ const productionBookingController = {
         tax: booking.tax?.$numberDecimal || '3.28',
         totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
         bookingId: booking._id.toString(),
-        cancelUrl: `${process.env.FRONTEND_URL}/cancel-booking?id=${booking._id.toString()}`
+        cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
       };
 
       console.log('SIMPLIFIED Email data being sent:', emailData);
