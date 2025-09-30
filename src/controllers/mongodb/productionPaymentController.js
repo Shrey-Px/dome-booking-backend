@@ -1,15 +1,21 @@
-// src/controllers/mongodb/productionPaymentController.js
-const stripe = require('../../config/stripe');
-const Booking = require('../../models/mongodb/ProductionBooking');
-const logger = require('../../utils/logger');
+// src/controllers/mongodb/productionPaymentController.js - Updated with webhook metadata
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const productionPaymentController = {
+  /**
+   * Create Stripe Payment Intent with booking metadata
+   * CRITICAL: Include bookingId in metadata for webhook processing
+   */
   createPaymentIntent: async (req, res) => {
     try {
-      console.log('[Production MongoDB] Creating payment intent...');
-      console.log('Request body:', req.body);
-      
-      const { amount, currency = 'cad' } = req.body;
+      const { amount, currency = 'cad', bookingId, customerEmail, customerName } = req.body;
+
+      console.log('Creating payment intent:', {
+        amount,
+        currency,
+        bookingId,
+        customerEmail
+      });
 
       if (!amount || amount <= 0) {
         return res.status(400).json({
@@ -18,146 +24,143 @@ const productionPaymentController = {
         });
       }
 
-      console.log('Creating payment intent for amount:', amount, currency);
+      // Create or retrieve Stripe customer
+      let stripeCustomer = null;
+      if (customerEmail) {
+        const existingCustomers = await stripe.customers.list({
+          email: customerEmail,
+          limit: 1
+        });
 
-      // Convert amount to cents for Stripe
-      const amountInCents = Math.round(amount * 100);
-
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: amountInCents,
-        currency: currency.toLowerCase(),
-        automatic_payment_methods: {
-          enabled: true,
-        },
-        metadata: {
-          source: 'web_booking_production',
-          database: 'MongoDB'
+        if (existingCustomers.data.length > 0) {
+          stripeCustomer = existingCustomers.data[0];
+          console.log('Found existing Stripe customer:', stripeCustomer.id);
+        } else {
+          stripeCustomer = await stripe.customers.create({
+            email: customerEmail,
+            name: customerName,
+            metadata: {
+              source: 'dome_booking_web'
+            }
+          });
+          console.log('Created new Stripe customer:', stripeCustomer.id);
         }
+      }
+
+      // Create payment intent with metadata
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Convert to cents
+        currency: currency.toLowerCase(),
+        customer: stripeCustomer?.id,
+        automatic_payment_methods: {
+          enabled: true
+        },
+        // CRITICAL: Include metadata for webhook processing
+        metadata: {
+          bookingId: bookingId || 'pending',
+          customerEmail: customerEmail || '',
+          customerName: customerName || '',
+          source: 'web_booking',
+          facility: 'vision-badminton',
+          timestamp: new Date().toISOString()
+        },
+        description: `Court booking for ${customerName || 'customer'}`,
+        receipt_email: customerEmail
       });
 
-      console.log('[Production MongoDB] Payment intent created:', paymentIntent.id);
+      console.log('Payment intent created:', paymentIntent.id);
 
       res.json({
         success: true,
         clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id,
+        customerId: stripeCustomer?.id
+      });
+
+    } catch (error) {
+      console.error('Error creating payment intent:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to create payment intent',
+        error: error.message
+      });
+    }
+  },
+
+  /**
+   * Update payment intent metadata with booking ID
+   * Called after booking is created
+   */
+  updatePaymentIntentMetadata: async (req, res) => {
+    try {
+      const { paymentIntentId, bookingId } = req.body;
+
+      if (!paymentIntentId || !bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Payment Intent ID and Booking ID are required'
+        });
+      }
+
+      console.log('Updating payment intent metadata:', { paymentIntentId, bookingId });
+
+      const paymentIntent = await stripe.paymentIntents.update(paymentIntentId, {
+        metadata: {
+          bookingId: bookingId
+        }
+      });
+
+      console.log('Payment intent metadata updated');
+
+      res.json({
+        success: true,
+        message: 'Payment intent metadata updated',
         paymentIntentId: paymentIntent.id
       });
 
     } catch (error) {
-      console.error('[Production MongoDB] Error creating payment intent:', error);
+      console.error('Error updating payment intent metadata:', error);
       res.status(500).json({
         success: false,
-        message: 'Failed to create payment intent',
-        error: error.message,
-        database: 'Production MongoDB'
+        message: 'Failed to update payment intent metadata',
+        error: error.message
       });
     }
   },
 
+  /**
+   * Process payment (legacy endpoint - webhook handles email now)
+   */
   processPayment: async (req, res) => {
     try {
-      console.log('[Production MongoDB] Processing payment...');
-      const { bookingId, paymentIntentId, amount } = req.body;
+      const { paymentIntentId, bookingId } = req.body;
 
-      if (!bookingId) {
+      console.log('Processing payment:', { paymentIntentId, bookingId });
+
+      // Verify payment intent status
+      const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+
+      if (paymentIntent.status !== 'succeeded') {
         return res.status(400).json({
           success: false,
-          message: 'Booking ID is required'
+          message: 'Payment not completed',
+          status: paymentIntent.status
         });
       }
-
-      // Update booking with payment information using direct collection update
-      const db = require('mongoose').connection.db;
-      
-      const updateResult = await db.collection('Booking').updateOne(
-        { _id: new require('mongodb').ObjectId(bookingId) },
-        { 
-          $set: {
-            paymentIntentId: paymentIntentId,
-            paymentIntentStatus: 'Success', // Mobile app uses this format
-            paymentIntentUpdated: new Date().toISOString(),
-            bookingStatus: 'Booked' // Ensure status is set to mobile app format
-          }
-        }
-      );
-
-      if (updateResult.matchedCount === 0) {
-        return res.status(404).json({
-          success: false,
-          message: 'Booking not found'
-        });
-      }
-
-      // Get updated booking
-      const updatedBooking = await db.collection('Booking').findOne(
-        { _id: new require('mongodb').ObjectId(bookingId) }
-      );
-
-      console.log('[Production MongoDB] Payment processed for booking:', bookingId);
 
       res.json({
         success: true,
         message: 'Payment processed successfully',
-        data: updatedBooking
+        status: paymentIntent.status,
+        note: 'Confirmation email will be sent via webhook'
       });
 
     } catch (error) {
-      console.error('[Production MongoDB] Error processing payment:', error);
+      console.error('Error processing payment:', error);
       res.status(500).json({
         success: false,
         message: 'Failed to process payment',
-        error: error.message,
-        database: 'Production MongoDB'
-      });
-    }
-  },
-
-  handleWebhook: async (req, res) => {
-    try {
-      console.log('[Production MongoDB] Webhook received...');
-      
-      const sig = req.headers['stripe-signature'];
-      const endpointSecret = process.env.STRIPE_WEBHOOK_SECRET;
-      
-      let event;
-      try {
-        event = stripe.webhooks.constructEvent(req.body, sig, endpointSecret);
-      } catch (err) {
-        console.error('[Production MongoDB] Webhook signature verification failed:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-      }
-
-      // Handle the event
-      switch (event.type) {
-        case 'payment_intent.succeeded':
-          const paymentIntent = event.data.object;
-          console.log('[Production MongoDB] Payment succeeded:', paymentIntent.id);
-          
-          // Update booking status if needed
-          const booking = await Booking.findOne({ paymentIntentId: paymentIntent.id });
-          if (booking && booking.status === 'pending') {
-            booking.status = 'paid';
-            await booking.save();
-            console.log('[Production MongoDB] Booking status updated to paid:', booking._id);
-          }
-          break;
-          
-        case 'payment_intent.payment_failed':
-          const failedPayment = event.data.object;
-          console.log('[Production MongoDB] Payment failed:', failedPayment.id);
-          break;
-          
-        default:
-          console.log('[Production MongoDB] Unhandled event type:', event.type);
-      }
-
-      res.json({ success: true, received: true });
-      
-    } catch (error) {
-      console.error('[Production MongoDB] Webhook error:', error);
-      res.status(500).json({ 
-        success: false, 
-        error: error.message 
+        error: error.message
       });
     }
   }

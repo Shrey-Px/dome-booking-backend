@@ -173,7 +173,7 @@ class EmailService {
 
       const msg = {
         to: bookingData.customerEmail,
-        from: process.env.EMAIL_FROM || 'noreply@domesports.com',
+        from: process.env.EMAIL_FROM || 'info@dafloinnovations.com',
         subject: `Booking Confirmation - ${bookingData.facilityName}`,
         html: htmlTemplate
       };
@@ -272,7 +272,7 @@ class EmailService {
 
       const msg = {
         to: bookingData.customerEmail,
-        from: process.env.EMAIL_FROM || 'noreply@domesports.com',
+        from: process.env.EMAIL_FROM || 'info@dafloinnovations.com',
         subject: `Booking Cancelled - ${bookingData.facilityName}`,
         html: htmlTemplate
       };

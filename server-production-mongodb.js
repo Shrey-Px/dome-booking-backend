@@ -1,4 +1,4 @@
-// server-production-mongodb.js - Production MongoDB server
+// server-production-mongodb.js - Updated with Stripe Webhook Handler
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -6,6 +6,7 @@ const rateLimit = require('express-rate-limit');
 const TenantMiddleware = require('./src/middleware/tenant');
 const tenantAvailabilityController = require('./src/controllers/mongodb/tenantAvailabilityController');
 const Facility = require('./src/models/mongodb/Facility');
+const stripeWebhookController = require('./src/controllers/mongodb/stripeWebhookController');
 
 // Import MongoDB connection and controllers
 const { connectMongoDB, mongoose } = require('./src/config/mongodb');
@@ -21,10 +22,18 @@ const app = express();
 app.set('trust proxy', true);
 const PORT = process.env.PORT || 3000;
 
-// Middleware
+// IMPORTANT: Stripe webhook route MUST come before express.json() middleware
+// This is because Stripe needs the raw body to verify the signature
+app.post('/api/v1/webhook/stripe', 
+  express.raw({ type: 'application/json' }),
+  stripeWebhookController.handleWebhook
+);
+
+// Regular middleware (after webhook route)
 app.use(cors({
   origin: [
     'http://localhost:3000',
+    'http://localhost:3001',
     'https://domeweb.netlify.app',
     /\.netlify\.app$/
   ],
@@ -48,12 +57,12 @@ app.get('/', (req, res) => {
     message: 'DOME Booking API - Production MongoDB',
     version: '2.0.0',
     database: 'Production MongoDB',
-    venue: 'Strings Badminton Academy',
+    venue: 'Vision Badminton Centre',
     timestamp: new Date().toISOString()
   });
 });
 
-// Add these debug endpoints after the /health endpoint
+// Debug endpoints
 app.get('/debug/connection', (req, res) => {
   res.json({
     success: true,
@@ -99,7 +108,6 @@ app.get('/debug/venues', async (req, res) => {
   }
 });
 
-// Add this new endpoint after your existing /health endpoint
 app.get('/current-ip', (req, res) => {
   require('https').get('https://api.ipify.org?format=json', (response) => {
     let data = '';
@@ -120,25 +128,21 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Update existing routes to be tenant-aware
-// Replace the existing availability route
+// Availability routes
 app.get('/api/v1/availability', 
-  TenantMiddleware.withDefaultTenant,  // This ensures backward compatibility
+  TenantMiddleware.withDefaultTenant,
   tenantAvailabilityController.getAvailability
 );
 
-// Add new tenant-specific routes
 app.get('/api/v1/tenant/availability', 
   TenantMiddleware.resolveTenant,
   tenantAvailabilityController.getAvailability
 );
 
-// Add this route mounting near other route definitions
+// Cancellation routes
 app.use('/api/v1/cancellation', cancellationRoutes);
 
-// Booking endpoints
-
-// Update booking routes to be tenant-aware
+// Booking routes
 app.post('/api/v1/booking/create-booking', 
   TenantMiddleware.withDefaultTenant,
   productionBookingController.createBooking
@@ -149,16 +153,9 @@ app.post('/api/v1/tenant/booking/create-booking',
   productionBookingController.createBooking
 );
 
-// Update other booking endpoints similarly
 app.get('/api/v1/booking/:id',
   TenantMiddleware.tryResolveTenant,
   productionBookingController.getBooking
-);
-
-// Update cancellation routes
-app.use('/api/v1/cancellation',
-  TenantMiddleware.tryResolveTenant,
-  cancellationRoutes
 );
 
 app.get('/api/v1/bookings', productionBookingController.getAllBookings);
@@ -168,9 +165,7 @@ app.post('/api/v1/booking/confirm-payment',
   productionBookingController.confirmPayment
 );
 
-// Discount endpoints
-
-// Update discount routes
+// Discount routes
 app.post('/api/v1/discount/apply-discount',
   TenantMiddleware.withDefaultTenant,
   productionDiscountController.applyDiscount
@@ -181,8 +176,7 @@ app.post('/api/v1/tenant/discount/apply-discount',
   productionDiscountController.applyDiscount
 );
 
-// Payment endpoints
-// Update payment routes
+// Payment routes
 app.post('/api/v1/payment/create-payment-intent',
   TenantMiddleware.tryResolveTenant,
   productionPaymentController.createPaymentIntent
@@ -193,9 +187,7 @@ app.post('/api/v1/payment/process-payment',
   productionPaymentController.processPayment
 );
 
-app.post('/api/v1/payment/webhook', express.raw({ type: 'application/json' }), productionPaymentController.handleWebhook);
-
-// Add facility management endpoints
+// Facility management endpoints
 app.get('/api/v1/facilities', async (req, res) => {
   try {
     const facilities = await Facility.getActiveFacilities();
@@ -280,9 +272,8 @@ async function startProductionServer() {
       console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`API Base URL: http://localhost:${PORT}`);
       console.log(`Health Check: http://localhost:${PORT}/health`);
-      console.log(`Availability Test: http://localhost:${PORT}/api/v1/availability?facility_id=68cad6b20a06da55dfb88af5&date=2025-08-27`);
+      console.log(`Webhook URL: http://localhost:${PORT}/api/v1/webhook/stripe`);
       console.log(`Database: Production MongoDB (Vision Badminton Centre)`);
-      console.log(`Venue ID: 68cad6b20a06da55dfb88af5`);
       console.log('='.repeat(70));
       
       logger.info(`Production MongoDB server started on port ${PORT}`);
