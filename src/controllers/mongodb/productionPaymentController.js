@@ -11,11 +11,11 @@ const productionPaymentController = {
       const { amount, currency = 'cad', bookingId, customerEmail, customerName } = req.body;
 
       // console.log('Creating payment intent:', {
-        amount,
-        currency,
-        bookingId,
-        customerEmail
-      });
+      //  amount,
+      //  currency,
+      //  bookingId,
+      //  customerEmail
+      // });
 
       if (!amount || amount <= 0) {
         return res.status(400).json({

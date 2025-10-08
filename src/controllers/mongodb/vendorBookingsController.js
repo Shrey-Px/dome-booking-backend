@@ -66,14 +66,14 @@ const vendorBookingsController = {
         .toArray();
 
       // console.log('Raw bookings found:', bookings.length);
-      if (bookings.length > 0) {
+      // if (bookings.length > 0) {
         // console.log('First booking sample:', {
-          venue: bookings[0].venue,
-          startTime: bookings[0].startTime,
-          bookingDate: bookings[0].bookingDate,
-          bookingStatus: bookings[0].bookingStatus
-        });
-      }
+        //  venue: bookings[0].venue,
+        //  startTime: bookings[0].startTime,
+        //  bookingDate: bookings[0].bookingDate,
+        //  bookingStatus: bookings[0].bookingStatus
+        // });
+      //}
 
       // Get total count
       const totalCount = await db.collection('Booking').countDocuments(query);
@@ -519,12 +519,12 @@ const vendorBookingsController = {
       };
 
       // console.log('Creating vendor booking with UTC dates:', {
-        bookingDate: bookingDateUTC.toISOString(),
-        startTime: startTimeUTC.toISOString(),
-        endTime: endTimeUTC.toISOString(),
-        bookingDateString: date,
-        startTimeString: startTime
-      });
+      //  bookingDate: bookingDateUTC.toISOString(),
+      //  startTime: startTimeUTC.toISOString(),
+      //  endTime: endTimeUTC.toISOString(),
+      //  bookingDateString: date,
+      //  startTimeString: startTime
+      // });
 
       const result = await db.collection('Booking').insertOne(newBooking);
 

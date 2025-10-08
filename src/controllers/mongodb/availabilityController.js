@@ -179,14 +179,14 @@ const mongoAvailabilityController = {
       };
 
       // console.log('📤 [MongoDB] Sending response with debug info:', {
-        success: response.success,
-        facility: response.data.facility.name,
-        courtsGenerated: response.data.debug.courtsGenerated,
-        totalSlots: response.data.debug.totalSlots,
-        availableSlots: response.data.debug.availableSlots,
-        bookingsFound: response.data.debug.bookingsFound,
-        database: 'MongoDB'
-      });
+      //  success: response.success,
+      //  facility: response.data.facility.name,
+      //  courtsGenerated: response.data.debug.courtsGenerated,
+      //  totalSlots: response.data.debug.totalSlots,
+      //  availableSlots: response.data.debug.availableSlots,
+      //  bookingsFound: response.data.debug.bookingsFound,
+      //  database: 'MongoDB'
+      // });
 
       res.json(response);
 

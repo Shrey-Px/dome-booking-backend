@@ -55,10 +55,10 @@ const productionBookingController = {
       const endTimeStr = endTime;         // Keep as "09:00"
 
       // console.log('SIMPLIFIED Date handling (strings only):', {
-        bookingDate: bookingDateStr,
-        startTime: startTimeStr,
-        endTime: endTimeStr
-      });
+      //  bookingDate: bookingDateStr,
+      //  startTime: startTimeStr,
+      //  endTime: endTimeStr
+      // });
 
       // For MongoDB time comparisons, create Date objects only for conflict checking
       const [year, month, day] = bookingDate.split('-').map(Number);
@@ -70,13 +70,13 @@ const productionBookingController = {
       const bookingDateOnly = new Date(year, month - 1, day, 12, 0, 0); // FIXED: Added back for MongoDB storage
 
       // console.log('Date parsing for conflict checking:', {
-        input: { bookingDate, startTime, endTime },
-        parsed: {
-          bookingStartTime: bookingStartTime.toString(),
-          bookingEndTime: bookingEndTime.toString(),
-          bookingDateOnly: bookingDateOnly.toString()
-        }
-      });
+      //   input: { bookingDate, startTime, endTime },
+      //   parsed: {
+      //     bookingStartTime: bookingStartTime.toString(),
+      //     bookingEndTime: bookingEndTime.toString(),
+      //     bookingDateOnly: bookingDateOnly.toString()
+      //   }
+      // });
 
       // Check for time conflicts
       const db = require('mongoose').connection.db;
@@ -131,17 +131,17 @@ const productionBookingController = {
         ]
       }).toArray();
 
-      if (conflictingBookings.length > 0) {
+      // if (conflictingBookings.length > 0) {
         // console.log('Time conflict found:', {
-          requestedSlot: { court: courtNumber, start: startTime, end: endTime },
-          conflictingBookings: conflictingBookings.map(booking => ({
-            court: booking.fieldName || booking.courtNumber,
-            start: booking.startTime,
-            end: booking.endTime,
-            status: booking.bookingStatus || booking.status,
-            source: booking.source || 'mobile'
-          }))
-        });
+        //  requestedSlot: { court: courtNumber, start: startTime, end: endTime },
+        //  conflictingBookings: conflictingBookings.map(booking => ({
+        //    court: booking.fieldName || booking.courtNumber,
+        //    start: booking.startTime,
+        //    end: booking.endTime,
+        //    status: booking.bookingStatus || booking.status,
+        //    source: booking.source || 'mobile'
+        //  }))
+        // });
         
         return res.status(409).json({
           success: false,
@@ -167,13 +167,13 @@ const productionBookingController = {
       const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
 
       // console.log('[Production MongoDB] Pricing breakdown:', {
-        courtRental: courtRental.toFixed(2),
-        serviceFee: serviceFee.toFixed(2),
-        discountApplied: discountApplied.toFixed(2),
-        subtotal: subtotal.toFixed(2),
-        tax: tax.toFixed(2),
-        finalTotal: finalTotal.toFixed(2)
-      });
+      //  courtRental: courtRental.toFixed(2),
+      //  serviceFee: serviceFee.toFixed(2),
+      //  discountApplied: discountApplied.toFixed(2),
+      //  subtotal: subtotal.toFixed(2),
+      //  tax: tax.toFixed(2),
+      //  finalTotal: finalTotal.toFixed(2)
+      // });
 
       // Create booking data with STRING dates/times AND Date objects for compatibility
       const bookingData = {
@@ -236,16 +236,16 @@ const productionBookingController = {
       };
 
       // console.log('About to insert booking data with proper ObjectId format:', {
-        venue: bookingData.venue,
-        startTime: bookingData.startTime,
-        endTime: bookingData.endTime,
-        bookingDate: bookingData.bookingDate,
-        player: bookingData.player,
+      //  venue: bookingData.venue,
+      //  startTime: bookingData.startTime,
+      //  endTime: bookingData.endTime,
+      //  bookingDate: bookingData.bookingDate,
+      //  player: bookingData.player,
         // Show string fields too
-        bookingDateString: bookingData.bookingDateString,
-        startTimeString: bookingData.startTimeString,
-        endTimeString: bookingData.endTimeString
-      });
+      //  bookingDateString: bookingData.bookingDateString,
+      //  startTimeString: bookingData.startTimeString,
+      //  endTimeString: bookingData.endTimeString
+      // });
 
       // Insert booking
       const result = await db.collection('Booking').insertOne(bookingData);
@@ -440,12 +440,12 @@ const productionBookingController = {
       const canCancel = hoursDiff > 24 && ['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status);
 
       // console.log('Cancellation calculation:', {
-        now: now.toString(),
-        bookingDateTime: bookingDateTime.toString(),
-        hoursDiff,
-        canCancel,
-        bookingStatus: booking.bookingStatus || booking.status
-      });
+      //  now: now.toString(),
+      //  bookingDateTime: bookingDateTime.toString(),
+      //  hoursDiff,
+      //  canCancel,
+      //  bookingStatus: booking.bookingStatus || booking.status
+      // });
 
       res.json({
         success: true,

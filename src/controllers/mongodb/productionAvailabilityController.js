@@ -51,9 +51,9 @@ const productionAvailabilityController = {
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
 
       // console.log(`[Production MongoDB] Searching for bookings between:`, {
-        start: dayStart.toISOString(),
-        end: dayEnd.toISOString()
-      });
+      //  start: dayStart.toISOString(),
+      //  end: dayEnd.toISOString()
+      // });
 
       // FIXED: Get existing bookings for the date using corrected MongoDB query that handles both ObjectId and string venue formats
       const db = require('mongoose').connection.db;
@@ -243,16 +243,16 @@ const productionAvailabilityController = {
       };
 
       // console.log('[Production MongoDB] Sending response:', {
-        success: response.success,
-        venue: response.data.facility.name,
-        courtsGenerated: response.data.debug.courtsGenerated,
-        totalSlots: response.data.debug.totalSlots,
-        availableSlots: response.data.debug.availableSlots,
-        bookingsFound: response.data.debug.bookingsFound,
-        webBookings: response.data.debug.bookingsBySource.web,
-        mobileBookings: response.data.debug.bookingsBySource.mobile,
-        database: 'Production MongoDB'
-      });
+      //  success: response.success,
+      //  venue: response.data.facility.name,
+      //  courtsGenerated: response.data.debug.courtsGenerated,
+      //  totalSlots: response.data.debug.totalSlots,
+      //  availableSlots: response.data.debug.availableSlots,
+      //  bookingsFound: response.data.debug.bookingsFound,
+      //  webBookings: response.data.debug.bookingsBySource.web,
+      //  mobileBookings: response.data.debug.bookingsBySource.mobile,
+      //  database: 'Production MongoDB'
+      // });
 
       res.json(response);
 
