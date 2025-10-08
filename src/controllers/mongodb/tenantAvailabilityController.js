@@ -37,10 +37,10 @@ const tenantAvailabilityController = {
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
 
       // console.log(`[Tenant Availability] Searching for bookings between:`, {
-        start: dayStart.toISOString(),
-        end: dayEnd.toISOString(),
-        facilityId: facility.venueId
-      });
+      //  start: dayStart.toISOString(),
+      //  end: dayEnd.toISOString(),
+      //  facilityId: facility.venueId
+      // });
 
       // Get existing bookings for the date using facility's venue ID
       const db = require('mongoose').connection.db;
