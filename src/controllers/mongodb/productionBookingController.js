@@ -131,7 +131,7 @@ const productionBookingController = {
         ]
       }).toArray();
 
-      // if (conflictingBookings.length > 0) {
+      if (conflictingBookings.length > 0) {
         // console.log('Time conflict found:', {
         //  requestedSlot: { court: courtNumber, start: startTime, end: endTime },
         //  conflictingBookings: conflictingBookings.map(booking => ({
