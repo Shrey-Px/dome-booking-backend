@@ -10,7 +10,7 @@ const productionPaymentController = {
     try {
       const { amount, currency = 'cad', bookingId, customerEmail, customerName } = req.body;
 
-      console.log('Creating payment intent:', {
+      // console.log('Creating payment intent:', {
         amount,
         currency,
         bookingId,
@@ -34,7 +34,7 @@ const productionPaymentController = {
 
         if (existingCustomers.data.length > 0) {
           stripeCustomer = existingCustomers.data[0];
-          console.log('Found existing Stripe customer:', stripeCustomer.id);
+          // console.log('Found existing Stripe customer:', stripeCustomer.id);
         } else {
           stripeCustomer = await stripe.customers.create({
             email: customerEmail,
@@ -43,7 +43,7 @@ const productionPaymentController = {
               source: 'dome_booking_web'
             }
           });
-          console.log('Created new Stripe customer:', stripeCustomer.id);
+          // console.log('Created new Stripe customer:', stripeCustomer.id);
         }
       }
 
@@ -68,7 +68,7 @@ const productionPaymentController = {
         receipt_email: customerEmail
       });
 
-      console.log('Payment intent created:', paymentIntent.id);
+      // console.log('Payment intent created:', paymentIntent.id);
 
       res.json({
         success: true,
@@ -102,7 +102,7 @@ const productionPaymentController = {
         });
       }
 
-      console.log('Updating payment intent metadata:', { paymentIntentId, bookingId });
+      // console.log('Updating payment intent metadata:', { paymentIntentId, bookingId });
 
       const paymentIntent = await stripe.paymentIntents.update(paymentIntentId, {
         metadata: {
@@ -110,7 +110,7 @@ const productionPaymentController = {
         }
       });
 
-      console.log('Payment intent metadata updated');
+      // console.log('Payment intent metadata updated');
 
       res.json({
         success: true,
@@ -135,7 +135,7 @@ const productionPaymentController = {
     try {
       const { paymentIntentId, bookingId } = req.body;
 
-      console.log('Processing payment:', { paymentIntentId, bookingId });
+      // console.log('Processing payment:', { paymentIntentId, bookingId });
 
       // Verify payment intent status
       const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);

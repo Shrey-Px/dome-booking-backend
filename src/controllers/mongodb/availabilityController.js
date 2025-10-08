@@ -4,8 +4,8 @@ const { Facility, Booking } = require('../../models/mongodb');
 const mongoAvailabilityController = {
   getAvailability: async (req, res) => {
     try {
-      console.log('📅 [MongoDB] Getting availability...');
-      console.log('Query params:', req.query);
+      // console.log('📅 [MongoDB] Getting availability...');
+      // console.log('Query params:', req.query);
 
       const { facility_id, date } = req.query;
 
@@ -20,7 +20,7 @@ const mongoAvailabilityController = {
       // Validate date format (YYYY-MM-DD)
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(date)) {
-        console.log('❌ Invalid date format:', date);
+        // console.log('❌ Invalid date format:', date);
         return res.status(400).json({
           success: false,
           message: 'Date must be in YYYY-MM-DD format',
@@ -28,16 +28,16 @@ const mongoAvailabilityController = {
         });
       }
 
-      console.log(`🔍 [MongoDB] Looking for facility: ${facility_id}`);
+      // console.log(`🔍 [MongoDB] Looking for facility: ${facility_id}`);
 
       // Check if facility exists
       let facility;
       try {
         facility = await Facility.findById(facility_id);
-        console.log('🏢 [MongoDB] Facility query result:', facility ? 'Found' : 'Not found');
+        // console.log('🏢 [MongoDB] Facility query result:', facility ? 'Found' : 'Not found');
         
         if (!facility) {
-          console.log('❌ [MongoDB] Facility not found in database');
+          // console.log('❌ [MongoDB] Facility not found in database');
           return res.status(404).json({
             success: false,
             message: 'Facility not found',
@@ -55,7 +55,7 @@ const mongoAvailabilityController = {
         });
       }
 
-      console.log(`🔍 [MongoDB] Looking for bookings on ${date}...`);
+      // console.log(`🔍 [MongoDB] Looking for bookings on ${date}...`);
 
       // Parse the date for MongoDB query
       const queryDate = new Date(date);
@@ -66,11 +66,11 @@ const mongoAvailabilityController = {
       try {
         existingBookings = await Booking.getAvailabilityForDate(facility_id, queryDate);
         
-        console.log(`📋 [MongoDB] Found ${existingBookings.length} bookings for ${date}`);
+        // console.log(`📋 [MongoDB] Found ${existingBookings.length} bookings for ${date}`);
         
         // Log booking details for debugging
         existingBookings.forEach((booking, index) => {
-          console.log(`📋 [MongoDB] Booking ${index + 1}: Court ${booking.courtNumber}, ${booking.startTime}-${booking.endTime}, Status: ${booking.status}, Customer: ${booking.customerName}`);
+          // console.log(`📋 [MongoDB] Booking ${index + 1}: Court ${booking.courtNumber}, ${booking.startTime}-${booking.endTime}, Status: ${booking.status}, Customer: ${booking.customerName}`);
         });
         
       } catch (dbError) {
@@ -99,7 +99,7 @@ const mongoAvailabilityController = {
       courts.forEach(court => {
         availability[court.id] = {};
         
-        console.log(`🏟️ [MongoDB] Generating availability for Court ${court.id}:`);
+        // console.log(`🏟️ [MongoDB] Generating availability for Court ${court.id}:`);
         
         // Generate time slots for business hours (6 AM to 10 PM)
         for (let hour = 6; hour <= 22; hour++) {
@@ -124,7 +124,7 @@ const mongoAvailabilityController = {
             const conflicts = slotHour >= bookingStartHour && slotHour < bookingEndHour;
             
             if (conflicts) {
-              console.log(`🚫 [MongoDB] Court ${court.id} at ${timeSlot} conflicts with booking: ${bookingStart}-${bookingEnd}`);
+              // console.log(`🚫 [MongoDB] Court ${court.id} at ${timeSlot} conflicts with booking: ${bookingStart}-${bookingEnd}`);
             }
             
             return conflicts;
@@ -135,14 +135,14 @@ const mongoAvailabilityController = {
           availability[court.id][timeSlot] = isAvailable;
           
           if (!isAvailable) {
-            console.log(`🔴 [MongoDB] Court ${court.id} at ${timeSlot} is UNAVAILABLE (${conflictingBookings.length} conflicts)`);
+            // console.log(`🔴 [MongoDB] Court ${court.id} at ${timeSlot} is UNAVAILABLE (${conflictingBookings.length} conflicts)`);
           } else {
-            console.log(`🟢 [MongoDB] Court ${court.id} at ${timeSlot} is AVAILABLE`);
+            // console.log(`🟢 [MongoDB] Court ${court.id} at ${timeSlot} is AVAILABLE`);
           }
         }
       });
 
-      console.log('✅ [MongoDB] Availability generation complete');
+      // console.log('✅ [MongoDB] Availability generation complete');
 
       // Add no-cache headers
       res.set({
@@ -178,7 +178,7 @@ const mongoAvailabilityController = {
         timestamp: new Date().toISOString()
       };
 
-      console.log('📤 [MongoDB] Sending response with debug info:', {
+      // console.log('📤 [MongoDB] Sending response with debug info:', {
         success: response.success,
         facility: response.data.facility.name,
         courtsGenerated: response.data.debug.courtsGenerated,

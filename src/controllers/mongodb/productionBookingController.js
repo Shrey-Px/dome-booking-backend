@@ -6,8 +6,8 @@ const emailService = require('../../services/emailService');
 const productionBookingController = {
   createBooking: async (req, res) => {
     try {
-      console.log('USING NEW MOBILE SCHEMA CONTROLLER - DEBUG LOG');
-      console.log('Request body received:', req.body);
+      // console.log('USING NEW MOBILE SCHEMA CONTROLLER - DEBUG LOG');
+      // console.log('Request body received:', req.body);
 
       const {
         facilityId,
@@ -47,14 +47,14 @@ const productionBookingController = {
         });
       }
 
-      console.log('[Production MongoDB] Venue found:', venue.fullName);
+      // console.log('[Production MongoDB] Venue found:', venue.fullName);
 
       // SIMPLIFIED: Keep dates and times as strings to avoid timezone issues
       const bookingDateStr = bookingDate; // Keep as "2025-10-04"
       const startTimeStr = startTime;     // Keep as "08:00"
       const endTimeStr = endTime;         // Keep as "09:00"
 
-      console.log('SIMPLIFIED Date handling (strings only):', {
+      // console.log('SIMPLIFIED Date handling (strings only):', {
         bookingDate: bookingDateStr,
         startTime: startTimeStr,
         endTime: endTimeStr
@@ -69,7 +69,7 @@ const productionBookingController = {
       const bookingEndTime = new Date(year, month - 1, day, endHour, endMin);
       const bookingDateOnly = new Date(year, month - 1, day, 12, 0, 0); // FIXED: Added back for MongoDB storage
 
-      console.log('Date parsing for conflict checking:', {
+      // console.log('Date parsing for conflict checking:', {
         input: { bookingDate, startTime, endTime },
         parsed: {
           bookingStartTime: bookingStartTime.toString(),
@@ -132,7 +132,7 @@ const productionBookingController = {
       }).toArray();
 
       if (conflictingBookings.length > 0) {
-        console.log('Time conflict found:', {
+        // console.log('Time conflict found:', {
           requestedSlot: { court: courtNumber, start: startTime, end: endTime },
           conflictingBookings: conflictingBookings.map(booking => ({
             court: booking.fieldName || booking.courtNumber,
@@ -166,7 +166,7 @@ const productionBookingController = {
       const tax = subtotal * 0.13; // 13% tax = $2.96
       const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
 
-      console.log('[Production MongoDB] Pricing breakdown:', {
+      // console.log('[Production MongoDB] Pricing breakdown:', {
         courtRental: courtRental.toFixed(2),
         serviceFee: serviceFee.toFixed(2),
         discountApplied: discountApplied.toFixed(2),
@@ -235,7 +235,7 @@ const productionBookingController = {
         isFirstBookingCouponApplied: !!discountCode
       };
 
-      console.log('About to insert booking data with proper ObjectId format:', {
+      // console.log('About to insert booking data with proper ObjectId format:', {
         venue: bookingData.venue,
         startTime: bookingData.startTime,
         endTime: bookingData.endTime,
@@ -249,12 +249,12 @@ const productionBookingController = {
 
       // Insert booking
       const result = await db.collection('Booking').insertOne(bookingData);
-      console.log('MongoDB insert result:', result.acknowledged);
+      // console.log('MongoDB insert result:', result.acknowledged);
 
       // Fetch the created booking
       const createdBooking = await db.collection('Booking').findOne({ _id: result.insertedId });
       
-      console.log('[Production MongoDB] Booking created successfully:', result.insertedId);
+      // console.log('[Production MongoDB] Booking created successfully:', result.insertedId);
 
       // NOTE: Email sending removed from here - will be sent after payment confirmation
 
@@ -395,7 +395,7 @@ const productionBookingController = {
         });
       }
 
-      console.log('Retrieved booking for cancellation:', booking);
+      // console.log('Retrieved booking for cancellation:', booking);
 
       // SIMPLIFIED: Create consistent response using string fields
       const responseBooking = {
@@ -439,7 +439,7 @@ const productionBookingController = {
       
       const canCancel = hoursDiff > 24 && ['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status);
 
-      console.log('Cancellation calculation:', {
+      // console.log('Cancellation calculation:', {
         now: now.toString(),
         bookingDateTime: bookingDateTime.toString(),
         hoursDiff,
@@ -558,11 +558,11 @@ const productionBookingController = {
   	cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}` // FIXED
       };
 
-      console.log('SIMPLIFIED Cancellation email data:', emailData);
+      // console.log('SIMPLIFIED Cancellation email data:', emailData);
 
       try {
         await emailService.sendCancellationConfirmation(emailData);
-        console.log('[Production MongoDB] Cancellation email sent successfully');
+        // console.log('[Production MongoDB] Cancellation email sent successfully');
       } catch (emailError) {
         console.error('[Production MongoDB] Failed to send cancellation email:', emailError);
       }
@@ -624,7 +624,7 @@ const productionBookingController = {
         _id: new ObjectId(bookingId)
       });
 
-      console.log('Retrieved booking for email:', booking);
+      // console.log('Retrieved booking for email:', booking);
 
       // Send confirmation email AFTER successful payment with FIXED date handling
       const emailData = {
@@ -649,11 +649,11 @@ const productionBookingController = {
         cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
       };
 
-      console.log('SIMPLIFIED Email data being sent:', emailData);
+      // console.log('SIMPLIFIED Email data being sent:', emailData);
 
       try {
         await emailService.sendBookingConfirmation(emailData);
-        console.log('[Production MongoDB] Confirmation email sent after successful payment');
+        // console.log('[Production MongoDB] Confirmation email sent after successful payment');
       } catch (emailError) {
         console.error('[Production MongoDB] Failed to send confirmation email:', emailError);
         // Don't fail the payment confirmation if email fails

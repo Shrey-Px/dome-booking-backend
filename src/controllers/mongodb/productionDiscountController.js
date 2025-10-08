@@ -4,7 +4,7 @@ const Discount = require('../../models/mongodb/Discount');
 const productionDiscountController = {
   applyDiscount: async (req, res) => {
     try {
-      console.log('[Production MongoDB] Applying discount...');
+      // console.log('[Production MongoDB] Applying discount...');
       const { code, amount } = req.body;
 
       if (!code || !amount) {
@@ -39,7 +39,7 @@ const productionDiscountController = {
       // Calculate discount amount
       const discountAmount = discount.calculateDiscount(amount);
 
-      console.log(`Discount applied: ${code} - $${discountAmount} off $${amount}`);
+      // console.log(`Discount applied: ${code} - $${discountAmount} off $${amount}`);
 
       res.json({
         success: true,

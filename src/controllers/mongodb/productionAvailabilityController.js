@@ -5,8 +5,8 @@ const { ObjectId } = require('mongodb');
 const productionAvailabilityController = {
   getAvailability: async (req, res) => {
     try {
-      console.log('[Production MongoDB] Getting availability...');
-      console.log('Query params:', req.query);
+      // console.log('[Production MongoDB] Getting availability...');
+      // console.log('Query params:', req.query);
 
       const { facility_id, date } = req.query;
 
@@ -21,7 +21,7 @@ const productionAvailabilityController = {
       // Validate date format (YYYY-MM-DD)
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(date)) {
-        console.log('Invalid date format:', date);
+        // console.log('Invalid date format:', date);
         return res.status(400).json({
           success: false,
           message: 'Date must be in YYYY-MM-DD format',
@@ -29,12 +29,12 @@ const productionAvailabilityController = {
         });
       }
 
-      console.log(`[Production MongoDB] Looking for venue: ${facility_id}`);
+      // console.log(`[Production MongoDB] Looking for venue: ${facility_id}`);
 
       // Check if venue exists
       const venue = await Venue.findById(facility_id);
       if (!venue) {
-        console.log('[Production MongoDB] Venue not found in database');
+        // console.log('[Production MongoDB] Venue not found in database');
         return res.status(404).json({
           success: false,
           message: 'Venue not found',
@@ -43,14 +43,14 @@ const productionAvailabilityController = {
         });
       }
 
-      console.log(`[Production MongoDB] Found venue: ${venue.fullName}`);
+      // console.log(`[Production MongoDB] Found venue: ${venue.fullName}`);
 
       // Parse date properly to avoid timezone issues
       const [year, month, day] = date.split('-').map(Number);
       const dayStart = new Date(year, month - 1, day, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
 
-      console.log(`[Production MongoDB] Searching for bookings between:`, {
+      // console.log(`[Production MongoDB] Searching for bookings between:`, {
         start: dayStart.toISOString(),
         end: dayEnd.toISOString()
       });
@@ -84,7 +84,7 @@ const productionAvailabilityController = {
         ]
       }).sort({ startTime: 1 }).toArray();
 
-      console.log(`[Production MongoDB] Found ${existingBookings.length} bookings for ${date}`);
+      // console.log(`[Production MongoDB] Found ${existingBookings.length} bookings for ${date}`);
       
       // Log booking details for debugging
       existingBookings.forEach((booking, index) => {
@@ -96,7 +96,7 @@ const productionAvailabilityController = {
         const customer = booking.customerName || 'Customer';
         const source = booking.source || 'mobile';
         
-        console.log(`[Production MongoDB] Booking ${index + 1}: ${courtInfo}, ${timeInfo}, Status: ${status}, Customer: ${customer}, Source: ${source}`);
+        // console.log(`[Production MongoDB] Booking ${index + 1}: ${courtInfo}, ${timeInfo}, Status: ${status}, Customer: ${customer}, Source: ${source}`);
       });
 
       // FIXED: Get operating hours for the correct day with proper hours
@@ -115,7 +115,7 @@ const productionAvailabilityController = {
         operatingHours = { open: '06:00', close: '22:00' };
       }
 
-      console.log(`Operating hours for ${dayName}:`, operatingHours);
+      // console.log(`Operating hours for ${dayName}:`, operatingHours);
 
       // Generate availability for each court
       const availability = {};
@@ -129,7 +129,7 @@ const productionAvailabilityController = {
       courts.forEach(court => {
         availability[court.id] = {};
         
-        console.log(`[Production MongoDB] Generating availability for Court ${court.id}:`);
+        // console.log(`[Production MongoDB] Generating availability for Court ${court.id}:`);
         
         // Parse operating hours
         const openHour = parseInt(operatingHours.open.split(':')[0]);
@@ -173,7 +173,7 @@ const productionAvailabilityController = {
             const conflicts = hour >= bookingStartHour && hour < bookingEndHour;
             
             if (conflicts) {
-              console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} conflicts with booking: ${bookingStartHour}:00-${bookingEndHour}:00 (${booking.source || 'mobile'})`);
+              // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} conflicts with booking: ${bookingStartHour}:00-${bookingEndHour}:00 (${booking.source || 'mobile'})`);
             }
             
             return conflicts;
@@ -185,14 +185,14 @@ const productionAvailabilityController = {
           
           if (!isAvailable) {
             const conflictingSources = conflictingBookings.map(b => b.source || 'mobile').join(', ');
-            console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is UNAVAILABLE (${conflictingBookings.length} conflicts from: ${conflictingSources})`);
+            // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is UNAVAILABLE (${conflictingBookings.length} conflicts from: ${conflictingSources})`);
           } else {
-            console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is AVAILABLE`);
+            // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is AVAILABLE`);
           }
         }
       });
 
-      console.log('[Production MongoDB] Availability generation complete');
+      // console.log('[Production MongoDB] Availability generation complete');
 
       // Add no-cache headers
       res.set({
@@ -242,7 +242,7 @@ const productionAvailabilityController = {
         timestamp: new Date().toISOString()
       };
 
-      console.log('[Production MongoDB] Sending response:', {
+      // console.log('[Production MongoDB] Sending response:', {
         success: response.success,
         venue: response.data.facility.name,
         courtsGenerated: response.data.debug.courtsGenerated,

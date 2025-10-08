@@ -4,9 +4,9 @@ const { ObjectId } = require('mongodb');
 const tenantAvailabilityController = {
   getAvailability: async (req, res) => {
     try {
-      console.log('[Tenant Availability] Getting availability...');
-      console.log('Query params:', req.query);
-      console.log('Facility:', req.facility?.name);
+      // console.log('[Tenant Availability] Getting availability...');
+      // console.log('Query params:', req.query);
+      // console.log('Facility:', req.facility?.name);
 
       const { date } = req.query;
       const facility = req.facility;
@@ -29,14 +29,14 @@ const tenantAvailabilityController = {
         });
       }
 
-      console.log(`[Tenant Availability] Facility: ${facility.name} (${facility.slug})`);
+      // console.log(`[Tenant Availability] Facility: ${facility.name} (${facility.slug})`);
 
       // Parse date properly to avoid timezone issues
       const [year, month, day] = date.split('-').map(Number);
       const dayStart = new Date(year, month - 1, day, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
 
-      console.log(`[Tenant Availability] Searching for bookings between:`, {
+      // console.log(`[Tenant Availability] Searching for bookings between:`, {
         start: dayStart.toISOString(),
         end: dayEnd.toISOString(),
         facilityId: facility.venueId
@@ -71,14 +71,14 @@ const tenantAvailabilityController = {
         ]
       }).sort({ startTime: 1 }).toArray();
 
-      console.log(`[Tenant Availability] Found ${existingBookings.length} bookings for ${date}`);
+      // console.log(`[Tenant Availability] Found ${existingBookings.length} bookings for ${date}`);
 
       // Get operating hours for the correct day using facility configuration
       const dayOfWeek = dayStart.getDay();
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const operatingHours = facility.getOperatingHours(isWeekend);
 
-      console.log(`Operating hours for ${isWeekend ? 'weekend' : 'weekday'}:`, operatingHours);
+      // console.log(`Operating hours for ${isWeekend ? 'weekend' : 'weekday'}:`, operatingHours);
 
       // Generate availability for each court using facility configuration
       const availability = {};
@@ -88,7 +88,7 @@ const tenantAvailabilityController = {
         
         availability[court.id] = {};
         
-        console.log(`[Tenant Availability] Generating availability for ${court.name}:`);
+        // console.log(`[Tenant Availability] Generating availability for ${court.name}:`);
         
         // Parse operating hours
         const openHour = parseInt(operatingHours.start.split(':')[0]);
@@ -137,7 +137,7 @@ const tenantAvailabilityController = {
         }
       });
 
-      console.log('[Tenant Availability] Availability generation complete');
+      // console.log('[Tenant Availability] Availability generation complete');
 
       // Add no-cache headers
       res.set({

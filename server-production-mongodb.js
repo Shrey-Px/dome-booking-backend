@@ -7,6 +7,8 @@ const TenantMiddleware = require('./src/middleware/tenant');
 const tenantAvailabilityController = require('./src/controllers/mongodb/tenantAvailabilityController');
 const Facility = require('./src/models/mongodb/Facility');
 const stripeWebhookController = require('./src/controllers/mongodb/stripeWebhookController');
+// Around line 10, add:
+const vendorRoutes = require('./src/routes/vendor');
 
 // Import MongoDB connection and controllers
 const { connectMongoDB, mongoose } = require('./src/config/mongodb');
@@ -19,7 +21,7 @@ const cancellationRoutes = require('./src/routes/cancellation');
 const logger = require('./src/utils/logger');
 
 const app = express();
-app.set('trust proxy', true);
+// app.set('trust proxy', true); // Comment this out for local development
 const PORT = process.env.PORT || 3000;
 
 // IMPORTANT: Stripe webhook route MUST come before express.json() middleware
@@ -187,6 +189,10 @@ app.post('/api/v1/payment/process-payment',
   productionPaymentController.processPayment
 );
 
+// Around line 150 (after payment routes), add:
+// Vendor routes
+app.use('/api/v1/vendor', vendorRoutes);
+
 // Facility management endpoints
 app.get('/api/v1/facilities', async (req, res) => {
   try {
@@ -239,6 +245,41 @@ app.get('/api/v1/facilities/:slug', async (req, res) => {
   }
 });
 
+app.get('/api/v1/debug/vendor-bookings', async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const db = mongoose.connection.db;
+    
+    // Force a fresh query with explicit options
+    const bookings = await db.collection('Booking')
+      .find({}, { readPreference: 'primary' })
+      .toArray();
+    
+    // Check if any have the venue
+    const withVenue = bookings.filter(b => b.venue === "68cad6b20a06da55dfb88af5");
+    
+    // Get a sample booking
+    const sample = bookings[0];
+    
+    res.json({
+      connectionState: mongoose.connection.readyState,
+      dbName: db.databaseName,
+      collectionName: 'Booking',
+      totalBookings: bookings.length,
+      bookingsWithVenue: withVenue.length,
+      sampleBooking: {
+        _id: sample._id,
+        venue: sample.venue,
+        venueType: typeof sample.venue,
+        bookingDate: sample.bookingDate
+      },
+      mongooseConnString: process.env.MONGODB_URI?.split('@')[1]?.split('?')[0] // Show host without password
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message, stack: error.stack });
+  }
+});
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Error:', error);
@@ -262,33 +303,33 @@ app.use((req, res) => {
 
 async function startProductionServer() {
   try {
-    console.log('Initializing Production MongoDB connection...');
+    // console.log('Initializing Production MongoDB connection...');
     await connectMongoDB();
-    console.log('Production MongoDB connection established successfully');
+    // console.log('Production MongoDB connection established successfully');
     
     const server = app.listen(PORT, () => {
-      console.log('='.repeat(70));
-      console.log(`DOME Booking API Server (Production MongoDB) running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-      console.log(`API Base URL: http://localhost:${PORT}`);
-      console.log(`Health Check: http://localhost:${PORT}/health`);
-      console.log(`Webhook URL: http://localhost:${PORT}/api/v1/webhook/stripe`);
-      console.log(`Database: Production MongoDB (Vision Badminton Centre)`);
-      console.log('='.repeat(70));
+      // console.log('='.repeat(70));
+      // console.log(`DOME Booking API Server (Production MongoDB) running on port ${PORT}`);
+      // console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+      // console.log(`API Base URL: http://localhost:${PORT}`);
+      // console.log(`Health Check: http://localhost:${PORT}/health`);
+      // console.log(`Webhook URL: http://localhost:${PORT}/api/v1/webhook/stripe`);
+      // console.log(`Database: Production MongoDB (Vision Badminton Centre)`);
+      // console.log('='.repeat(70));
       
       logger.info(`Production MongoDB server started on port ${PORT}`);
     });
 
     // Graceful shutdown
     process.on('SIGTERM', async () => {
-      console.log('SIGTERM received, shutting down gracefully...');
+      //console.log('SIGTERM received, shutting down gracefully...');
       
       server.close(async () => {
-        console.log('HTTP server closed');
+        // console.log('HTTP server closed');
         
         try {
           await mongoose.connection.close();
-          console.log('Production MongoDB connection closed');
+          // console.log('Production MongoDB connection closed');
           process.exit(0);
         } catch (error) {
           console.error('Error closing MongoDB connection:', error);
@@ -298,14 +339,14 @@ async function startProductionServer() {
     });
 
     process.on('SIGINT', async () => {
-      console.log('\nSIGINT received, shutting down gracefully...');
+      // console.log('\nSIGINT received, shutting down gracefully...');
       
       server.close(async () => {
-        console.log('HTTP server closed');
+        //console.log('HTTP server closed');
         
         try {
           await mongoose.connection.close();
-          console.log('Production MongoDB connection closed');
+          // console.log('Production MongoDB connection closed');
           process.exit(0);
         } catch (error) {
           console.error('Error closing MongoDB connection:', error);

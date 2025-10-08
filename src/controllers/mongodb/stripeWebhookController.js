@@ -17,7 +17,7 @@ const stripeWebhookController = {
     try {
       // Verify webhook signature
       event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-      console.log('✅ Webhook signature verified:', event.type);
+      // console.log('✅ Webhook signature verified:', event.type);
     } catch (err) {
       console.error('⚠️ Webhook signature verification failed:', err.message);
       return res.status(400).send(`Webhook Error: ${err.message}`);
@@ -43,7 +43,7 @@ const stripeWebhookController = {
           break;
 
         default:
-          console.log(`Unhandled event type: ${event.type}`);
+          // console.log(`Unhandled event type: ${event.type}`);
       }
 
       // Return success response to Stripe
@@ -66,8 +66,8 @@ const stripeWebhookController = {
  * This is the critical path for email delivery
  */
 async function handlePaymentSucceeded(paymentIntent) {
-  console.log('💳 Payment succeeded:', paymentIntent.id);
-  console.log('Metadata:', paymentIntent.metadata);
+  // console.log('💳 Payment succeeded:', paymentIntent.id);
+  // console.log('Metadata:', paymentIntent.metadata);
 
   const bookingId = paymentIntent.metadata.bookingId;
   
@@ -89,7 +89,7 @@ async function handlePaymentSucceeded(paymentIntent) {
       return;
     }
 
-    console.log('📋 Found booking:', {
+    // console.log('📋 Found booking:', {
       id: booking._id,
       customer: booking.customerName,
       court: booking.fieldName,
@@ -98,7 +98,7 @@ async function handlePaymentSucceeded(paymentIntent) {
 
     // Check if email already sent (idempotency)
     if (booking.confirmationEmailSent) {
-      console.log('✉️ Confirmation email already sent, skipping');
+      // console.log('✉️ Confirmation email already sent, skipping');
       return;
     }
 
@@ -116,7 +116,7 @@ async function handlePaymentSucceeded(paymentIntent) {
       }
     );
 
-    console.log('✅ Booking status updated to Success');
+    // console.log('✅ Booking status updated to Success');
 
     // Send confirmation email
     const emailData = {
@@ -138,7 +138,7 @@ async function handlePaymentSucceeded(paymentIntent) {
       cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
     };
 
-    console.log('📧 Sending confirmation email to:', emailData.customerEmail);
+    // console.log('📧 Sending confirmation email to:', emailData.customerEmail);
 
     const emailResult = await emailService.sendBookingConfirmation(emailData);
 
@@ -157,7 +157,7 @@ async function handlePaymentSucceeded(paymentIntent) {
         }
       );
     } else {
-      console.log('✅ Confirmation email sent successfully');
+      // console.log('✅ Confirmation email sent successfully');
       
       // Mark email as sent
       await db.collection('Booking').updateOne(
@@ -182,7 +182,7 @@ async function handlePaymentSucceeded(paymentIntent) {
  * Handle failed payment
  */
 async function handlePaymentFailed(paymentIntent) {
-  console.log('❌ Payment failed:', paymentIntent.id);
+  // console.log('❌ Payment failed:', paymentIntent.id);
   
   const bookingId = paymentIntent.metadata.bookingId;
   if (!bookingId) return;
@@ -201,7 +201,7 @@ async function handlePaymentFailed(paymentIntent) {
       }
     );
 
-    console.log('📝 Booking marked as payment failed');
+    // console.log('📝 Booking marked as payment failed');
 
   } catch (error) {
     console.error('Error handling payment failure:', error);
@@ -212,7 +212,7 @@ async function handlePaymentFailed(paymentIntent) {
  * Handle canceled payment
  */
 async function handlePaymentCanceled(paymentIntent) {
-  console.log('🚫 Payment canceled:', paymentIntent.id);
+  // console.log('🚫 Payment canceled:', paymentIntent.id);
   
   const bookingId = paymentIntent.metadata.bookingId;
   if (!bookingId) return;
@@ -230,7 +230,7 @@ async function handlePaymentCanceled(paymentIntent) {
       }
     );
 
-    console.log('📝 Booking marked as payment canceled');
+    // console.log('📝 Booking marked as payment canceled');
 
   } catch (error) {
     console.error('Error handling payment cancellation:', error);
@@ -241,7 +241,7 @@ async function handlePaymentCanceled(paymentIntent) {
  * Handle refund
  */
 async function handleChargeRefunded(charge) {
-  console.log('💰 Charge refunded:', charge.id);
+  // console.log('💰 Charge refunded:', charge.id);
   
   const paymentIntentId = charge.payment_intent;
   if (!paymentIntentId) return;
@@ -255,7 +255,7 @@ async function handleChargeRefunded(charge) {
     });
 
     if (!booking) {
-      console.log('No booking found for payment intent:', paymentIntentId);
+      // console.log('No booking found for payment intent:', paymentIntentId);
       return;
     }
 
@@ -271,7 +271,7 @@ async function handleChargeRefunded(charge) {
       }
     );
 
-    console.log('✅ Booking marked as refunded');
+    // console.log('✅ Booking marked as refunded');
 
     // Optionally send refund confirmation email
     // await emailService.sendRefundConfirmation(...)
