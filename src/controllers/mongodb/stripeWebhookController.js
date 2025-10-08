@@ -90,11 +90,11 @@ async function handlePaymentSucceeded(paymentIntent) {
     }
 
     // console.log('📋 Found booking:', {
-      id: booking._id,
-      customer: booking.customerName,
-      court: booking.fieldName,
-      status: booking.paymentIntentStatus
-    });
+    //  id: booking._id,
+    //  customer: booking.customerName,
+    //  court: booking.fieldName,
+    //  status: booking.paymentIntentStatus
+    // });
 
     // Check if email already sent (idempotency)
     if (booking.confirmationEmailSent) {
