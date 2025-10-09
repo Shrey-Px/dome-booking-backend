@@ -542,7 +542,7 @@ const productionBookingController = {
       const emailData = {
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
-  	facilityName: 'Vision Badminton Centre',
+  	facilityName: facility?.name || 'Sports Facility',
   	courtName: booking.fieldName,
   	bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
   	startTime: booking.startTimeString || booking.startTime || 'Unknown time',
