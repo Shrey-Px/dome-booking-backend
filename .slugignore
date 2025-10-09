@@ -1,0 +1,5 @@
+# Create .slugignore
+echo ".env" > .slugignore
+echo ".env.local" >> .slugignore
+echo ".env.production" >> .slugignore
+echo "node_modules/" >> .slugignore
