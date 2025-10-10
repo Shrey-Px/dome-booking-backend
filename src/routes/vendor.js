@@ -5,10 +5,10 @@ const vendorAuth = require('../middleware/vendorAuth');
 const vendorAuthController = require('../controllers/mongodb/vendorAuthController');
 const vendorBookingsController = require('../controllers/mongodb/vendorBookingsController');
 
-// Rate limiting for login endpoint
+// Rate limiter ONLY for login endpoint - more generous limits
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 requests per window
+  max: 10, // Increased from 5 to 10 attempts per window
   skipSuccessfulRequests: true, // Don't count successful logins
   standardHeaders: true,
   legacyHeaders: false,
@@ -20,22 +20,18 @@ const loginLimiter = rateLimit({
   }
 });
 
-// Public routes (no auth required)
-router.post('/login', loginLimiter, vendorAuthController.login);
-
-// Protected routes (auth required)
-router.get('/profile', vendorAuth, vendorAuthController.getProfile);
+// Authentication routes
+router.post('/login', loginLimiter, vendorAuthController.login); // Only login has rate limiting
 router.post('/logout', vendorAuth, vendorAuthController.logout);
+router.get('/profile', vendorAuth, vendorAuthController.getProfile);
 
-// Bookings routes
+// Booking routes - NO RATE LIMITING (protected by JWT auth instead)
 router.get('/bookings', vendorAuth, vendorBookingsController.getBookings);
 router.get('/bookings/:bookingId', vendorAuth, vendorBookingsController.getBookingDetails);
-router.get('/stats', vendorAuth, vendorBookingsController.getStats);
-
-// Cancel booking
+router.post('/bookings', vendorAuth, vendorBookingsController.createBooking);
 router.put('/bookings/:bookingId/cancel', vendorAuth, vendorBookingsController.cancelBooking);
 
-// Create manual booking
-router.post('/bookings', vendorAuth, vendorBookingsController.createBooking);
+// Stats route - NO RATE LIMITING
+router.get('/stats', vendorAuth, vendorBookingsController.getStats);
 
 module.exports = router;
