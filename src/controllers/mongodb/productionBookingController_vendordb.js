@@ -158,22 +158,9 @@ const productionBookingController = {
         });
       }
 
-      // Get court-specific pricing from facility
-      const Facility = require('../../models/mongodb/Facility');
-      const facility = await Facility.findById(facilityId);
-
-      if (!facility) {
-        return res.status(404).json({
-          success: false,
-          message: 'Facility not found'
-        });
-      }
-
-      // Find the specific court to get its pricing
-      const court = facility.courts.find(c => c.id === parseInt(courtNumber));
-      const courtRental = court?.pricing?.courtRental || 25.00; // Default to $25 if not found
-
-      const serviceFee = courtRental * 0.01; // 1% service fee
+      // NEW PRICING CALCULATION STRUCTURE
+      const courtRental = 25.00; // Base court rental
+      const serviceFee = courtRental * 0.01; // 1% service fee = $0.25
       const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied
       const subtotal = courtRental + serviceFee - discountApplied; // $25.00 + $0.25 - $2.50 = $22.75
       const tax = subtotal * 0.13; // 13% tax = $2.96

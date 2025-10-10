@@ -5,11 +5,7 @@ const courtSchema = new mongoose.Schema({
   id: { type: Number, required: true },
   name: { type: String, required: true },
   sport: { type: String, required: true },
-  active: { type: Boolean, default: true },
-  pricing: {
-    courtRental: { type: Number, default: 25.00 },
-    currency: { type: String, default: 'CAD' }
-  }
+  active: { type: Boolean, default: true }
 });
 
 const operatingHoursSchema = new mongoose.Schema({
