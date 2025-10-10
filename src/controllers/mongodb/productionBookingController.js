@@ -158,20 +158,28 @@ const productionBookingController = {
         });
       }
 
-      // Get court-specific pricing from facility
+      // Get court from facility
       const Facility = require('../../models/mongodb/Facility');
       const facility = await Facility.findById(facilityId);
 
       if (!facility) {
-        return res.status(404).json({
+          return res.status(404).json({
           success: false,
           message: 'Facility not found'
         });
       }
 
-      // Find the specific court to get its pricing
+      // Find the court and determine pricing by sport
       const court = facility.courts.find(c => c.id === parseInt(courtNumber));
-      const courtRental = court?.pricing?.courtRental || 25.00; // Default to $25 if not found
+      let courtRental = 25.00; // Default (Badminton)
+
+      if (court && court.sport === 'Pickleball') {
+        courtRental = 30.00;
+      } else if (court && court.sport === 'Badminton') {
+        courtRental = 25.00;
+      }
+
+      console.log('Backend pricing:', { courtNumber, sport: court?.sport, courtRental });
 
       const serviceFee = courtRental * 0.01; // 1% service fee
       const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied

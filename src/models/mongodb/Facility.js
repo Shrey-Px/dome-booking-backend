@@ -4,12 +4,9 @@ const mongoose = require('mongoose');
 const courtSchema = new mongoose.Schema({
   id: { type: Number, required: true },
   name: { type: String, required: true },
-  sport: { type: String, required: true },
-  active: { type: Boolean, default: true },
-  pricing: {
-    courtRental: { type: Number, default: 25.00 },
-    currency: { type: String, default: 'CAD' }
-  }
+  sport: { type: String, required: true }, // 'Badminton' or 'Pickleball'
+  active: { type: Boolean, default: true }
+  // Remove pricing field - will be calculated dynamically
 });
 
 const operatingHoursSchema = new mongoose.Schema({

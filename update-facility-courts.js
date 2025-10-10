@@ -1,4 +1,3 @@
-// update-facility-courts.js
 require('dotenv').config();
 const mongoose = require('mongoose');
 const Facility = require('./src/models/mongodb/Facility');
@@ -11,7 +10,6 @@ async function updateFacility() {
     await mongoose.connect(MONGODB_URI);
     console.log('✅ Connected to MongoDB');
 
-    // Find Vision Badminton facility
     const facility = await Facility.findOne({ slug: 'vision-badminton' });
     
     if (!facility) {
@@ -21,49 +19,35 @@ async function updateFacility() {
 
     console.log('Found facility:', facility.name);
 
-    // Create 22 badminton courts
+    // Create 22 badminton courts (NO PRICING)
     const badmintonCourts = [];
     for (let i = 1; i <= 22; i++) {
       badmintonCourts.push({
         id: i,
         name: `Court ${i}`,
         sport: 'Badminton',
-        active: true,
-        pricing: {
-          courtRental: 25.00,
-          currency: 'CAD'
-        }
+        active: true
       });
     }
 
-    // Create 2 pickleball courts
+    // Create 2 pickleball courts (NO PRICING)
     const pickleballCourts = [
       {
         id: 23,
         name: 'Court P1',
         sport: 'Pickleball',
-        active: true,
-        pricing: {
-          courtRental: 30.00,
-          currency: 'CAD'
-        }
+        active: true
       },
       {
         id: 24,
         name: 'Court P2',
         sport: 'Pickleball',
-        active: true,
-        pricing: {
-          courtRental: 30.00,
-          currency: 'CAD'
-        }
+        active: true
       }
     ];
 
-    // Combine all courts
     const allCourts = [...badmintonCourts, ...pickleballCourts];
 
-    // Update facility
     facility.courts = allCourts;
     facility.totalCourts = 24;
     
@@ -73,6 +57,8 @@ async function updateFacility() {
     console.log('Total courts:', facility.totalCourts);
     console.log('Badminton courts:', badmintonCourts.length);
     console.log('Pickleball courts:', pickleballCourts.length);
+    console.log('Sample badminton court:', facility.courts.find(c => c.id === 1));
+    console.log('Sample pickleball court:', facility.courts.find(c => c.id === 23));
 
     process.exit(0);
   } catch (error) {
