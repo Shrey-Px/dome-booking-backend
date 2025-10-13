@@ -4,10 +4,13 @@ const availabilityController = require('../controllers/availabilityController');
 
 router.use((req, res, next) => {
   console.log(`Availability route hit: ${req.method} ${req.path}`);
-  console.log('Query params:', req.query);
+  console.log('Params:', req.params);
+  console.log('Query:', req.query);
   next();
 });
 
+// Support both formats
+router.get('/:facilitySlug', availabilityController.getAvailability);
 router.get('/', availabilityController.getAvailability);
 
 module.exports = router;
