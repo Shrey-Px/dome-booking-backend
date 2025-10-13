@@ -181,6 +181,9 @@ const productionBookingController = {
         });
       }
 
+      console.log('✅ VENUE FOUND SUCCESSFULLY');
+      console.log('Using venue:', venue.fullName || venue.name);
+
       // Get court from facility
       // const Facility = require('../../models/mongodb/Facility');
       // const facility = await Facility.findById(facilityId);
@@ -192,32 +195,41 @@ const productionBookingController = {
       //  });
       // }
 
-      // Find the court and determine pricing by sport
-      const court = facility.courts.find(c => c.id === parseInt(courtNumber));
-      let courtRental = 25.00; // Default (Badminton)
+      // USE PRICING SERVICE INSTEAD
+      const { calculateBookingPrice } = require('../../utils/pricing');
 
-      if (court && court.sport === 'Pickleball') {
-        courtRental = 30.00;
-      } else if (court && court.sport === 'Badminton') {
-        courtRental = 25.00;
-      }
+      // Determine court type
+      const courtNum = parseInt(courtNumber);
+      const courtType = (courtNum === 23 || courtNum === 24) ? 'Pickleball' : 'Badminton';
 
-      console.log('Backend pricing:', { courtNumber, sport: court?.sport, courtRental });
+      console.log('Court type:', courtType);
 
-      const serviceFee = courtRental * 0.01; // 1% service fee
-      const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied
-      const subtotal = courtRental + serviceFee - discountApplied; // $25.00 + $0.25 - $2.50 = $22.75
-      const tax = subtotal * 0.13; // 13% tax = $2.96
-      const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
+      // Calculate pricing using pricing service
+      const pricingResult = calculateBookingPrice({
+        courtType,
+        duration: duration || 60,
+        discountCode: discountCode || null,
+        discountAmount: discountAmount || 0
+      });
 
-      // console.log('[Production MongoDB] Pricing breakdown:', {
-      //  courtRental: courtRental.toFixed(2),
-      //  serviceFee: serviceFee.toFixed(2),
-      //  discountApplied: discountApplied.toFixed(2),
-      //  subtotal: subtotal.toFixed(2),
-      //  tax: tax.toFixed(2),
-      //  finalTotal: finalTotal.toFixed(2)
-      // });
+      const {
+        courtRental,
+        serviceFee,
+        subtotal,
+        tax,
+        finalTotal,
+        discountApplied
+      } = pricingResult;
+
+      console.log('[Production MongoDB] Pricing from pricing service:', {
+        courtType,
+        courtRental: courtRental.toFixed(2),
+        serviceFee: serviceFee.toFixed(2),
+        discountApplied: discountApplied.toFixed(2),
+        subtotal: subtotal.toFixed(2),
+        tax: tax.toFixed(2),
+        finalTotal: finalTotal.toFixed(2)
+      });
 
       // Create booking data with STRING dates/times AND Date objects for compatibility
       const bookingData = {
