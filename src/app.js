@@ -306,12 +306,7 @@ try {
     next();
   }, facilitiesRoutes);
   
-  app.use('/api/v1/availability', (req, res, next) => {
-    console.log('🎯 Availability route hit:', req.method, req.path);
-    console.log('🎯 Full URL:', req.originalUrl);
-    console.log('🎯 Query params:', req.query);
-    next();
-  }, availabilityRoutes);
+  app.use('/api/v1/availability', availabilityRoutes);
   
   app.use('/api/v1/booking', (req, res, next) => {
     console.log('🎯 Booking route hit:', req.method, req.path);

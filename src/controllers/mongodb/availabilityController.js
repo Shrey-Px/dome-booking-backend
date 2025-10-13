@@ -8,11 +8,9 @@ const mongoAvailabilityController = {
       console.log('Query:', req.query);
 
       // Support both facilitySlug and facility_id
-      const facilitySlug = req.params.facilitySlug || null;
-      const facility_id = req.query.facility_id || null;
+      const facilitySlug = req.params.facilitySlug;
+      const facility_id = req.query.facility_id;
       const date = req.query.date;
-
-      console.log('📥 Received params:', { facilitySlug, facility_id, date });
 
       if (!date) {
         return res.status(400).json({
@@ -30,15 +28,38 @@ const mongoAvailabilityController = {
         });
       }
 
-      // Find facility by slug or ID
+      // Find facility by slug or ID - support both Facility and Venue collections
       let facility;
       
       if (facilitySlug) {
         console.log('🔍 Looking for facility by slug:', facilitySlug);
+        // Try Facility collection first
         facility = await Facility.findOne({ slug: facilitySlug });
+        
+        // If not found, try Venue collection
+        if (!facility) {
+          console.log('🔍 Not in Facility collection, trying Venue...');
+          const Venue = require('../models/mongodb/Venue');
+          facility = await Venue.findOne({ slug: facilitySlug });
+        }
       } else if (facility_id) {
         console.log('🔍 Looking for facility by ID:', facility_id);
-        facility = await Facility.findById(facility_id);
+        // Try Facility collection first
+        try {
+          facility = await Facility.findById(facility_id);
+        } catch (err) {
+          console.log('🔍 Not a valid Facility ID, trying Venue...');
+        }
+        
+        // If not found, try Venue collection
+        if (!facility) {
+          const Venue = require('../models/mongodb/Venue');
+          try {
+            facility = await Venue.findById(facility_id);
+          } catch (err) {
+            console.log('❌ Not a valid Venue ID either');
+          }
+        }
       } else {
         return res.status(400).json({
           success: false,
@@ -47,14 +68,14 @@ const mongoAvailabilityController = {
       }
 
       if (!facility) {
-        console.log('❌ Facility not found');
+        console.log('❌ Facility not found in any collection');
         return res.status(404).json({
           success: false,
-          message: 'Facility not found'
+          message: 'Failed to resolve facility'
         });
       }
 
-      console.log('✅ Facility found:', facility.name);
+      console.log('✅ Facility found:', facility.name || facility.fullName);
       console.log('🔍 Looking for bookings on', date);
 
       // Parse the date for MongoDB query
