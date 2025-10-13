@@ -8,9 +8,11 @@ const mongoAvailabilityController = {
       console.log('Query:', req.query);
 
       // Support both facilitySlug and facility_id
-      const facilitySlug = req.params.facilitySlug;
-      const facility_id = req.query.facility_id;
+      const facilitySlug = req.params.facilitySlug || null;
+      const facility_id = req.query.facility_id || null;
       const date = req.query.date;
+
+      console.log('📥 Received params:', { facilitySlug, facility_id, date });
 
       if (!date) {
         return res.status(400).json({

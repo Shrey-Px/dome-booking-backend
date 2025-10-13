@@ -291,7 +291,8 @@ try {
   console.log('📁 Loading route modules...');
   
   const bookingRoutes = require('./routes/booking');
-  const availabilityRoutes = require('./routes/availability'); 
+  const availabilityRoutes = require('./routes/availability');
+  const facilitiesRoutes = require('./routes/facilities'); // ← ADD THIS
   const paymentRoutes = require('./routes/payment');
   const discountRoutes = require('./routes/discount');
   
@@ -299,6 +300,11 @@ try {
   
   // Mount routes with enhanced logging
   console.log('🛣️ Mounting routes...');
+
+  app.use('/api/v1/facilities', (req, res, next) => {
+    console.log('🎯 Facilities route hit:', req.method, req.path);
+    next();
+  }, facilitiesRoutes);
   
   app.use('/api/v1/availability', (req, res, next) => {
     console.log('🎯 Availability route hit:', req.method, req.path);
