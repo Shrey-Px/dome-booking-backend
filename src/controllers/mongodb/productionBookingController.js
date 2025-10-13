@@ -182,15 +182,15 @@ const productionBookingController = {
       }
 
       // Get court from facility
-      const Facility = require('../../models/mongodb/Facility');
-      const facility = await Facility.findById(facilityId);
+      // const Facility = require('../../models/mongodb/Facility');
+      // const facility = await Facility.findById(facilityId);
 
-      if (!facility) {
-          return res.status(404).json({
-          success: false,
-          message: 'Facility not found'
-        });
-      }
+      // if (!facility) {
+          // return res.status(404).json({
+          // success: false,
+          // message: 'Facility not found'
+      //  });
+      // }
 
       // Find the court and determine pricing by sport
       const court = facility.courts.find(c => c.id === parseInt(courtNumber));
