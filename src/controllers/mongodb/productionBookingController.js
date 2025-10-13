@@ -10,6 +10,7 @@ const productionBookingController = {
       // console.log('Request body received:', req.body);
 
       const {
+        facilitySlug,
         facilityId,
         customerName,
         customerEmail,
@@ -27,6 +28,14 @@ const productionBookingController = {
         notes
       } = req.body;
 
+      console.log('Create booking request:', {
+        facilitySlug,
+        facilityId,
+        courtNumber,
+        bookingDate,
+        startTime
+      });
+
       // Basic validation
       if (!facilityId || !customerName || !customerEmail || !courtNumber || !bookingDate || !startTime || !endTime) {
         return res.status(400).json({
@@ -36,14 +45,28 @@ const productionBookingController = {
         });
       }
 
-      // Check if venue exists
+      // Find venue by facilitySlug OR facilityId
       const Venue = require('../../models/mongodb/Venue');
-      const venue = await Venue.findById(facilityId);
+      let venue;
+    
+      if (facilitySlug) {
+        // Try finding by slug first
+        venue = await Venue.findOne({ slug: facilitySlug });
+        console.log('Found venue by slug:', venue?.fullName);
+      }
+    
+      if (!venue && facilityId) {
+        // Fallback to ID
+        venue = await Venue.findById(facilityId);
+        console.log('Found venue by ID:', venue?.fullName);
+      }
+
       if (!venue) {
+        console.error('Venue not found:', { facilitySlug, facilityId });
         return res.status(404).json({
           success: false,
           message: 'Venue not found',
-          facilityId
+          debug: { facilitySlug, facilityId }
         });
       }
 
