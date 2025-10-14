@@ -110,6 +110,32 @@ app.get('/debug/venues', async (req, res) => {
   }
 });
 
+// Add after line 110 in server-production-mongodb.js
+app.get('/api/v1/debug/facilities', async (req, res) => {
+  try {
+    const Facility = require('./src/models/mongodb/Facility');
+    const facilities = await Facility.find({});
+    
+    res.json({
+      success: true,
+      count: facilities.length,
+      facilities: facilities.map(f => ({
+        id: f._id,
+        slug: f.slug,
+        name: f.name,
+        venueId: f.venueId,
+        active: f.active,
+        totalCourts: f.totalCourts
+      }))
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 app.get('/current-ip', (req, res) => {
   require('https').get('https://api.ipify.org?format=json', (response) => {
     let data = '';
