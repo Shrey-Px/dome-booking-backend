@@ -10,7 +10,6 @@ const productionBookingController = {
       // console.log('Request body received:', req.body);
 
       const {
-        facilitySlug,
         facilityId,
         customerName,
         customerEmail,
@@ -28,14 +27,6 @@ const productionBookingController = {
         notes
       } = req.body;
 
-      console.log('Create booking request:', {
-        facilitySlug,
-        facilityId,
-        courtNumber,
-        bookingDate,
-        startTime
-      });
-
       // Basic validation
       if (!facilityId || !customerName || !customerEmail || !courtNumber || !bookingDate || !startTime || !endTime) {
         return res.status(400).json({
@@ -45,28 +36,14 @@ const productionBookingController = {
         });
       }
 
-      // Find venue by facilitySlug OR facilityId
+      // Check if venue exists
       const Venue = require('../../models/mongodb/Venue');
-      let venue;
-    
-      if (facilitySlug) {
-        // Try finding by slug first
-        venue = await Venue.findOne({ slug: facilitySlug });
-        console.log('Found venue by slug:', venue?.fullName);
-      }
-    
-      if (!venue && facilityId) {
-        // Fallback to ID
-        venue = await Venue.findById(facilityId);
-        console.log('Found venue by ID:', venue?.fullName);
-      }
-
+      const venue = await Venue.findById(facilityId);
       if (!venue) {
-        console.error('Venue not found:', { facilitySlug, facilityId });
         return res.status(404).json({
           success: false,
           message: 'Venue not found',
-          debug: { facilitySlug, facilityId }
+          facilityId
         });
       }
 
@@ -181,55 +158,43 @@ const productionBookingController = {
         });
       }
 
-      console.log('✅ VENUE FOUND SUCCESSFULLY');
-      console.log('Using venue:', venue.fullName || venue.name);
-
       // Get court from facility
-      // const Facility = require('../../models/mongodb/Facility');
-      // const facility = await Facility.findById(facilityId);
+      const Facility = require('../../models/mongodb/Facility');
+      const facility = await Facility.findById(facilityId);
 
-      // if (!facility) {
-          // return res.status(404).json({
-          // success: false,
-          // message: 'Facility not found'
-      //  });
-      // }
+      if (!facility) {
+          return res.status(404).json({
+          success: false,
+          message: 'Facility not found'
+        });
+      }
 
-      // USE PRICING SERVICE INSTEAD
-      const { calculateBookingPrice } = require('../../utils/pricing');
+      // Find the court and determine pricing by sport
+      const court = facility.courts.find(c => c.id === parseInt(courtNumber));
+      let courtRental = 25.00; // Default (Badminton)
 
-      // Determine court type
-      const courtNum = parseInt(courtNumber);
-      const courtType = (courtNum === 23 || courtNum === 24) ? 'Pickleball' : 'Badminton';
+      if (court && court.sport === 'Pickleball') {
+        courtRental = 30.00;
+      } else if (court && court.sport === 'Badminton') {
+        courtRental = 25.00;
+      }
 
-      console.log('Court type:', courtType);
+      console.log('Backend pricing:', { courtNumber, sport: court?.sport, courtRental });
 
-      // Calculate pricing using pricing service
-      const pricingResult = calculateBookingPrice({
-        courtType,
-        duration: duration || 60,
-        discountCode: discountCode || null,
-        discountAmount: discountAmount || 0
-      });
+      const serviceFee = courtRental * 0.01; // 1% service fee
+      const discountApplied = discountAmount || 0; // $2.50 if WELCOME10 applied
+      const subtotal = courtRental + serviceFee - discountApplied; // $25.00 + $0.25 - $2.50 = $22.75
+      const tax = subtotal * 0.13; // 13% tax = $2.96
+      const finalTotal = subtotal + tax; // $22.75 + $2.96 = $25.71
 
-      const {
-        courtRental,
-        serviceFee,
-        subtotal,
-        tax,
-        finalTotal,
-        discountApplied
-      } = pricingResult;
-
-      console.log('[Production MongoDB] Pricing from pricing service:', {
-        courtType,
-        courtRental: courtRental.toFixed(2),
-        serviceFee: serviceFee.toFixed(2),
-        discountApplied: discountApplied.toFixed(2),
-        subtotal: subtotal.toFixed(2),
-        tax: tax.toFixed(2),
-        finalTotal: finalTotal.toFixed(2)
-      });
+      // console.log('[Production MongoDB] Pricing breakdown:', {
+      //  courtRental: courtRental.toFixed(2),
+      //  serviceFee: serviceFee.toFixed(2),
+      //  discountApplied: discountApplied.toFixed(2),
+      //  subtotal: subtotal.toFixed(2),
+      //  tax: tax.toFixed(2),
+      //  finalTotal: finalTotal.toFixed(2)
+      // });
 
       // Create booking data with STRING dates/times AND Date objects for compatibility
       const bookingData = {
