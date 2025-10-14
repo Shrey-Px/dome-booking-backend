@@ -181,17 +181,17 @@ app.post('/api/v1/booking/create-booking',
   productionBookingController.createBooking
 );
 
+app.post('/api/v1/booking/confirm-payment',
+  TenantMiddleware.tryResolveTenant,
+  productionBookingController.confirmPayment
+);
+
 app.get('/api/v1/booking/:id',
   TenantMiddleware.tryResolveTenant,
   productionBookingController.getBooking
 );
 
 app.get('/api/v1/bookings', productionBookingController.getAllBookings);
-
-app.post('/api/v1/booking/confirm-payment',
-  TenantMiddleware.tryResolveTenant,
-  productionBookingController.confirmPayment
-);
 
 // Discount routes
 app.post('/api/v1/discount/apply-discount',
