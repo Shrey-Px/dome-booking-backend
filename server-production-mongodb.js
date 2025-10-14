@@ -171,17 +171,17 @@ app.get('/api/v1/tenant/availability',
 app.use('/api/v1/cancellation', cancellationRoutes);
 
 // Booking routes
-app.post('/api/v1/tenant/booking/create-booking',
-  TenantMiddleware.resolveTenant,
-  productionBookingController.createBooking
-);
-
 app.post('/api/v1/booking/create-booking', 
   TenantMiddleware.withDefaultTenant,
   productionBookingController.createBooking
 );
 
-app.post('/api/v1/booking/confirm-payment',
+app.post('/api/v1/tenant/booking/create-booking',
+  TenantMiddleware.resolveTenant,
+  productionBookingController.createBooking
+);
+
+app.post('/api/v1/tenant/booking/confirm-payment',
   TenantMiddleware.tryResolveTenant,
   productionBookingController.confirmPayment
 );

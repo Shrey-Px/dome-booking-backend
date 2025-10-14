@@ -1,4 +1,4 @@
-// src/controllers/mongodb/productionBookingController.js - Using TenantMiddleware properly
+// src/controllers/mongodb/productionBookingController.js - Complete Updated Version
 const Venue = require('../../models/mongodb/Venue');
 const Facility = require('../../models/mongodb/Facility');
 const { ObjectId } = require('mongodb');
@@ -33,17 +33,14 @@ const productionBookingController = {
         });
       }
 
-      // ✅ USE FACILITY FROM MIDDLEWARE
-      // TenantMiddleware has already resolved the facility and attached it to req
+      // USE FACILITY FROM MIDDLEWARE
       const facility = req.facility;
       const venueId = req.venueId;
 
       if (!facility || !venueId) {
         console.error('[Booking] Missing facility/venue from middleware:', {
           hasFacility: !!facility,
-          hasVenueId: !!venueId,
-          reqFacility: req.facility,
-          reqVenueId: req.venueId
+          hasVenueId: !!venueId
         });
         
         return res.status(500).json({
@@ -272,13 +269,385 @@ const productionBookingController = {
     }
   },
 
-  // ... rest of methods remain the same ...
-  getAllBookings: async (req, res) => { /* same as before */ },
-  getBooking: async (req, res) => { /* same as before */ },
-  cancelBooking: async (req, res) => { /* same as before */ },
-  getCancellationDetails: async (req, res) => { /* same as before */ },
-  processCancellation: async (req, res) => { /* same as before */ },
-  confirmPayment: async (req, res) => { /* same as before */ }
+  getAllBookings: async (req, res) => {
+    try {
+      const db = require('mongoose').connection.db;
+      const bookings = await db.collection('Booking').find({})
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .toArray();
+      
+      res.json({
+        success: true,
+        data: bookings,
+        count: bookings.length
+      });
+    } catch (error) {
+      console.error('[Production MongoDB] Error getting bookings:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve bookings',
+        error: error.message
+      });
+    }
+  },
+
+  getBooking: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const db = require('mongoose').connection.db;
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new ObjectId(id)
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      res.json({
+        success: true,
+        data: booking
+      });
+    } catch (error) {
+      console.error('[Production MongoDB] Error getting booking:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve booking',
+        error: error.message
+      });
+    }
+  },
+
+  cancelBooking: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const db = require('mongoose').connection.db;
+      
+      const result = await db.collection('Booking').updateOne(
+        { _id: new ObjectId(id) },
+        { 
+          $set: { 
+            bookingStatus: 'Cancelled',
+            paymentIntentStatus: 'Cancelled'
+          } 
+        }
+      );
+      
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      const updatedBooking = await db.collection('Booking').findOne({ 
+        _id: new ObjectId(id)
+      });
+
+      res.json({
+        success: true,
+        message: 'Booking cancelled successfully',
+        data: updatedBooking
+      });
+
+    } catch (error) {
+      console.error('[Production MongoDB] Error cancelling booking:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to cancel booking',
+        error: error.message
+      });
+    }
+  },
+
+  getCancellationDetails: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const db = require('mongoose').connection.db;
+      
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new ObjectId(id)
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      const responseBooking = {
+        _id: booking._id,
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        fieldName: booking.fieldName,
+        bookingDate: booking.bookingDateString || 'Unknown date',
+        startTime: booking.startTimeString || 'Unknown time', 
+        endTime: booking.endTimeString || 'Unknown time',
+        bookingStatus: booking.bookingStatus || booking.status
+      };
+
+      // Calculate if booking can be cancelled (24 hours rule)
+      const now = new Date();
+      let bookingDateTime;
+      
+      try {
+        if (booking.bookingDateString && booking.startTimeString) {
+          const [year, month, day] = booking.bookingDateString.split('-').map(Number);
+          const [hours, minutes] = booking.startTimeString.split(':').map(Number);
+          bookingDateTime = new Date(year, month - 1, day, hours, minutes);
+        } else if (booking.startTime instanceof Date) {
+          bookingDateTime = new Date(booking.startTime);
+        } else {
+          bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+        }
+      } catch (error) {
+        console.error('Error parsing booking date/time:', error);
+        bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+      }
+      
+      const timeDiff = bookingDateTime.getTime() - now.getTime();
+      const hoursDiff = timeDiff / (1000 * 60 * 60);
+      
+      const canCancel = hoursDiff > 24 && ['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status);
+
+      res.json({
+        success: true,
+        data: {
+          booking: responseBooking,
+          canCancel,
+          hoursUntilBooking: Math.max(0, hoursDiff)
+        }
+      });
+    } catch (error) {
+      console.error('[Production MongoDB] Error getting cancellation details:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to retrieve booking details',
+        error: error.message
+      });
+    }
+  },
+
+  processCancellation: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const db = require('mongoose').connection.db;
+      
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new ObjectId(id) 
+      });
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      // Check 24-hour rule
+      const now = new Date();
+      let bookingDateTime;
+      
+      try {
+        if (booking.bookingDateString && booking.startTimeString) {
+          const [year, month, day] = booking.bookingDateString.split('-').map(Number);
+          const [hours, minutes] = booking.startTimeString.split(':').map(Number);
+          bookingDateTime = new Date(year, month - 1, day, hours, minutes);
+        } else if (booking.startTime instanceof Date) {
+          bookingDateTime = new Date(booking.startTime);
+        } else {
+          bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+        }
+      } catch (error) {
+        console.error('Error parsing booking date/time for cancellation:', error);
+        bookingDateTime = new Date(now.getTime() + 25 * 60 * 60 * 1000);
+      }
+      
+      const timeDiff = bookingDateTime.getTime() - now.getTime();
+      const hoursDiff = timeDiff / (1000 * 60 * 60);
+      
+      if (hoursDiff <= 24) {
+        return res.status(400).json({
+          success: false,
+          message: 'Bookings cannot be cancelled within 24 hours of the scheduled time',
+          hoursUntilBooking: Math.max(0, hoursDiff)
+        });
+      }
+
+      if (!['Booked', 'Completed', 'paid', 'confirmed'].includes(booking.bookingStatus || booking.status)) {
+        return res.status(400).json({
+          success: false,
+          message: 'This booking cannot be cancelled'
+        });
+      }
+
+      // Cancel the booking
+      const result = await db.collection('Booking').updateOne(
+        { _id: new ObjectId(id) },
+        { 
+          $set: { 
+            bookingStatus: 'Cancelled',
+            paymentIntentStatus: 'Cancelled',
+            cancelledAt: new Date()
+          } 
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      // Send cancellation email
+      const emailData = {
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        facilityName: 'Vision Badminton Centre',
+        courtName: booking.fieldName,
+        bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
+        startTime: booking.startTimeString || booking.startTime || 'Unknown time',
+        endTime: booking.endTimeString || booking.endTime || 'Unknown time',
+        duration: 60,
+        courtRental: booking.price?.$numberDecimal || '25.00',
+        serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
+        discountAmount: booking.discount?.$numberDecimal || '0.00',
+        subtotal: booking.subtotal?.$numberDecimal || '25.25',
+        tax: booking.tax?.$numberDecimal || '3.28',
+        totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
+        bookingId: booking._id.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
+      };
+
+      try {
+        await emailService.sendCancellationConfirmation(emailData);
+      } catch (emailError) {
+        console.error('[Production MongoDB] Failed to send cancellation email:', emailError);
+      }
+         
+      res.json({
+        success: true,
+        message: 'Booking cancelled successfully',
+        data: { 
+          bookingId: id,
+          cancelledAt: new Date()
+        }
+      });
+
+    } catch (error) {
+      console.error('[Production MongoDB] Error processing cancellation:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to cancel booking',
+        error: error.message
+      });
+    }
+  },
+
+  confirmPayment: async (req, res) => {
+    try {
+      const { bookingId, paymentIntentId } = req.body;
+      
+      console.log('[confirmPayment] Received request:', { bookingId, paymentIntentId });
+      
+      if (!bookingId) {
+        return res.status(400).json({
+          success: false,
+          message: 'Booking ID is required'
+        });
+      }
+
+      const db = require('mongoose').connection.db;
+      
+      console.log('[confirmPayment] Updating booking status...');
+      
+      // Update booking status to paid
+      const updateResult = await db.collection('Booking').updateOne(
+        { _id: new ObjectId(bookingId) },
+        { 
+          $set: { 
+            paymentIntentStatus: 'Success',
+            paymentIntentId: paymentIntentId,
+            paidAt: new Date()
+          } 
+        }
+      );
+
+      if (updateResult.matchedCount === 0) {
+        console.error('[confirmPayment] Booking not found:', bookingId);
+        return res.status(404).json({
+          success: false,
+          message: 'Booking not found'
+        });
+      }
+
+      console.log('[confirmPayment] Booking updated, fetching details...');
+
+      // Get the updated booking
+      const booking = await db.collection('Booking').findOne({ 
+        _id: new ObjectId(bookingId)
+      });
+
+      console.log('[confirmPayment] Booking found:', {
+        id: booking._id,
+        customer: booking.customerEmail,
+        status: booking.paymentIntentStatus
+      });
+
+      // Prepare email data
+      const emailData = {
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        facilityName: 'Vision Badminton Centre',
+        courtName: booking.fieldName,
+        bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
+        startTime: booking.startTimeString || booking.startTime || 'Unknown time',
+        endTime: booking.endTimeString || booking.endTime || 'Unknown time',
+        duration: 60,
+        courtRental: booking.price?.$numberDecimal || '25.00',
+        serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
+        discountAmount: booking.discount?.$numberDecimal || '0.00',
+        subtotal: booking.subtotal?.$numberDecimal || '25.25',
+        tax: booking.tax?.$numberDecimal || '3.28',
+        totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
+        bookingId: booking._id.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
+      };
+
+      console.log('[confirmPayment] Sending confirmation email to:', emailData.customerEmail);
+
+      try {
+        await emailService.sendBookingConfirmation(emailData);
+        console.log('[confirmPayment] ✅ Email sent successfully');
+      } catch (emailError) {
+        console.error('[confirmPayment] ❌ Email send failed:', emailError);
+        // Don't fail the payment confirmation if email fails
+      }
+
+      res.json({
+        success: true,
+        message: 'Payment confirmed and email sent',
+        data: {
+          bookingId: bookingId,
+          paymentStatus: 'Success',
+          emailSent: true
+        }
+      });
+
+    } catch (error) {
+      console.error('[confirmPayment] Error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to confirm payment',
+        error: error.message
+      });
+    }
+  }
 };
 
 module.exports = productionBookingController;
