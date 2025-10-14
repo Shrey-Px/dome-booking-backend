@@ -145,13 +145,13 @@ app.get('/api/v1/tenant/availability',
 app.use('/api/v1/cancellation', cancellationRoutes);
 
 // Booking routes
-app.post('/api/v1/booking/create-booking', 
-  TenantMiddleware.withDefaultTenant,
+app.post('/api/v1/tenant/booking/create-booking',
+  TenantMiddleware.resolveTenant,
   productionBookingController.createBooking
 );
 
-app.post('/api/v1/tenant/booking/create-booking',
-  TenantMiddleware.resolveTenant,
+app.post('/api/v1/booking/create-booking', 
+  TenantMiddleware.withDefaultTenant,
   productionBookingController.createBooking
 );
 
