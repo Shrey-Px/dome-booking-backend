@@ -24,6 +24,7 @@ const loginLimiter = rateLimit({
 router.post('/login', loginLimiter, vendorAuthController.login); // Only login has rate limiting
 router.post('/logout', vendorAuth, vendorAuthController.logout);
 router.get('/profile', vendorAuth, vendorAuthController.getProfile);
+router.get('/courts', vendorAuth, vendorBookingsController.getFacilityCourts);
 
 // Booking routes - NO RATE LIMITING (protected by JWT auth instead)
 router.get('/bookings', vendorAuth, vendorBookingsController.getBookings);

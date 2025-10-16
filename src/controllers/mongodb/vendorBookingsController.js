@@ -84,6 +84,7 @@ const vendorBookingsController = {
         // Court info
         courtName: booking.fieldName || `Court ${booking.courtNumber}`,
         courtNumber: booking.courtNumber,
+        sport: booking.gameName || 'Badminton', // Add sport field
         
         // Date/Time info
         bookingDate: booking.bookingDateString || booking.bookingDate,
@@ -143,6 +144,40 @@ const vendorBookingsController = {
       });
     }
   },
+
+  /**
+   * Get facility courts configuration
+   */
+  getFacilityCourts: async (req, res) => {
+    try {
+      const { facilityId } = req.vendor;
+      const Facility = require('../../models/mongodb/Facility');
+      const facility = await Facility.findById(facilityId);
+    
+      if (!facility) {
+        return res.status(404).json({
+          success: false,
+          message: 'Facility not found'
+        });
+      }
+    
+      res.json({
+        success: true,
+        data: {
+          courts: facility.courts,
+          totalCourts: facility.totalCourts,
+          operatingHours: facility.operatingHours
+        }
+      });
+    } catch (error) {
+      console.error('Get facility courts error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch courts',
+        error: error.message
+      });
+    }
+  }
 
   /**
    * Get single booking details
@@ -456,6 +491,25 @@ const vendorBookingsController = {
           message: 'Time slot already booked'
         });
       }
+
+      // Get court details to determine sport and pricing
+      const court = facility.courts.find(c => 
+        c.name === courtName || c.id === parseInt(courtNumber)
+      );
+    
+      if (!court) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid court selection'
+        });
+      }
+
+      // Determine pricing based on sport
+      const sport = court.sport || 'Badminton';
+      const courtRental = sport === 'Pickleball' ? 30.00 : 25.00;
+      const serviceFee = courtRental * 0.01;
+      const tax = (courtRental + serviceFee) * 0.13;
+      const totalPrice = courtRental + serviceFee + tax;
 
       // Parse date and times - create UTC Date objects at midnight/specified hour
       const [year, month, day] = date.split('-').map(Number);
