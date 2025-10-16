@@ -3,23 +3,23 @@ const Facility = require('../models/mongodb/Facility');
 
 const TenantMiddleware = {
   /**
-   * Resolve tenant from facilitySlug in request body or headers
+   * Resolve tenant from facilitySlug in request body, query params, or headers
    * Attaches facility info to req object for downstream use
    */
   resolveTenant: async (req, res, next) => {
     try {
-      // Try multiple sources for facility slug
+      // Try multiple sources for facility slug (ORDER MATTERS)
       const facilitySlug = 
+        req.query.facilitySlug ||      // ✅ NEW: Check query params first (for GET requests)
         req.body.facilitySlug || 
         req.params.facilitySlug || 
-        req.query.facilitySlug ||
         req.headers['x-facility-slug'];
       
       console.log('[TenantMiddleware] Resolving tenant:', {
         slug: facilitySlug,
-        source: req.body.facilitySlug ? 'body' : 
+        source: req.query.facilitySlug ? 'query' :
+                req.body.facilitySlug ? 'body' : 
                 req.params.facilitySlug ? 'params' :
-                req.query.facilitySlug ? 'query' : 
                 req.headers['x-facility-slug'] ? 'header' : 'none',
         method: req.method,
         path: req.path
@@ -30,9 +30,9 @@ const TenantMiddleware = {
         return res.status(400).json({
           success: false,
           message: 'Facility slug is required',
-          hint: 'Provide facilitySlug in request body, query params, or x-facility-slug header',
-          receivedBody: req.body,
-          receivedQuery: req.query
+          hint: 'Provide facilitySlug in query params (?facilitySlug=...), request body, or x-facility-slug header',
+          receivedQuery: req.query,
+          receivedBody: req.body
         });
       }
 
@@ -132,9 +132,9 @@ const TenantMiddleware = {
   tryResolveTenant: async (req, res, next) => {
     try {
       const facilitySlug = 
+        req.query.facilitySlug ||      // ✅ NEW: Check query params
         req.body.facilitySlug || 
         req.params.facilitySlug || 
-        req.query.facilitySlug ||
         req.headers['x-facility-slug'];
       
       if (facilitySlug) {

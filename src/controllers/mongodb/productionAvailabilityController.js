@@ -1,27 +1,42 @@
-// src/controllers/mongodb/productionAvailabilityController.js - Complete Fixed Version with ObjectId compatibility
+// src/controllers/mongodb/productionAvailabilityController.js - Updated for 24 Courts Multi-Sport
 const Venue = require('../../models/mongodb/Venue');
+const Facility = require('../../models/mongodb/Facility');
 const { ObjectId } = require('mongodb');
 
 const productionAvailabilityController = {
   getAvailability: async (req, res) => {
     try {
-      // console.log('[Production MongoDB] Getting availability...');
-      // console.log('Query params:', req.query);
+      const { date } = req.query;
+      
+      // Get facility from middleware (tenant context)
+      const facility = req.facility;
+      const venueId = req.venueId;
 
-      const { facility_id, date } = req.query;
+      console.log('[Availability] Request received:', {
+        date,
+        facilitySlug: facility?.slug,
+        venueId: venueId?.toString()
+      });
 
-      if (!facility_id || !date) {
+      if (!facility || !venueId) {
         return res.status(400).json({
           success: false,
-          message: 'facility_id and date are required',
-          received: { facility_id, date }
+          message: 'Facility context missing',
+          hint: 'TenantMiddleware should have resolved facility'
+        });
+      }
+
+      if (!date) {
+        return res.status(400).json({
+          success: false,
+          message: 'Date parameter is required',
+          hint: 'Provide date in YYYY-MM-DD format'
         });
       }
 
       // Validate date format (YYYY-MM-DD)
       const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
       if (!dateRegex.test(date)) {
-        // console.log('Invalid date format:', date);
         return res.status(400).json({
           success: false,
           message: 'Date must be in YYYY-MM-DD format',
@@ -29,52 +44,50 @@ const productionAvailabilityController = {
         });
       }
 
-      // console.log(`[Production MongoDB] Looking for venue: ${facility_id}`);
+      console.log('[Availability] Using facility:', {
+        name: facility.name,
+        slug: facility.slug,
+        totalCourts: facility.totalCourts,
+        courtsConfigured: facility.courts?.length || 0
+      });
 
-      // Check if venue exists
-      const venue = await Venue.findById(facility_id);
+      // Verify venue exists
+      const venue = await Venue.findById(venueId);
       if (!venue) {
-        // console.log('[Production MongoDB] Venue not found in database');
         return res.status(404).json({
           success: false,
           message: 'Venue not found',
-          facilityId: facility_id,
-          database: 'Production MongoDB'
+          venueId: venueId.toString()
         });
       }
-
-      // console.log(`[Production MongoDB] Found venue: ${venue.fullName}`);
 
       // Parse date properly to avoid timezone issues
       const [year, month, day] = date.split('-').map(Number);
       const dayStart = new Date(year, month - 1, day, 0, 0, 0);
       const dayEnd = new Date(year, month - 1, day, 23, 59, 59);
 
-      // console.log(`[Production MongoDB] Searching for bookings between:`, {
-      //  start: dayStart.toISOString(),
-      //  end: dayEnd.toISOString()
-      // });
+      console.log('[Availability] Searching bookings between:', {
+        start: dayStart.toISOString(),
+        end: dayEnd.toISOString()
+      });
 
-      // FIXED: Get existing bookings for the date using corrected MongoDB query that handles both ObjectId and string venue formats
+      // Get existing bookings for the date (both ObjectId and string venue formats)
       const db = require('mongoose').connection.db;
       
       const existingBookings = await db.collection('Booking').find({
         $and: [
-          // FIXED: Search for both string and ObjectId venue formats
           {
             $or: [
-              { venue: facility_id }, // String format (web bookings)
-              { venue: new ObjectId(facility_id) } // ObjectId format (mobile bookings)
+              { venue: venueId.toString() },
+              { venue: new ObjectId(venueId) }
             ]
           },
           {
             $or: [
-              // Mobile schema bookings (startTime as Date)
               {
                 startTime: { $gte: dayStart, $lte: dayEnd },
                 bookingStatus: { $in: ['Booked', 'Completed'] }
               },
-              // Old web schema bookings (bookingDate as Date)
               {
                 bookingDate: { $gte: dayStart, $lte: dayEnd },
                 status: { $in: ['pending', 'paid', 'completed'] }
@@ -84,56 +97,61 @@ const productionAvailabilityController = {
         ]
       }).sort({ startTime: 1 }).toArray();
 
-      // console.log(`[Production MongoDB] Found ${existingBookings.length} bookings for ${date}`);
-      
-      // Log booking details for debugging
-      existingBookings.forEach((booking, index) => {
-        const courtInfo = booking.fieldName || `Court ${booking.courtNumber}`;
-        const timeInfo = booking.startTime instanceof Date 
-          ? `${booking.startTime.getHours().toString().padStart(2, '0')}:${booking.startTime.getMinutes().toString().padStart(2, '0')}-${booking.endTime.getHours().toString().padStart(2, '0')}:${booking.endTime.getMinutes().toString().padStart(2, '0')}`
-          : `${booking.startTime}-${booking.endTime}`;
-        const status = booking.bookingStatus || booking.status;
-        const customer = booking.customerName || 'Customer';
-        const source = booking.source || 'mobile';
-        
-        // console.log(`[Production MongoDB] Booking ${index + 1}: ${courtInfo}, ${timeInfo}, Status: ${status}, Customer: ${customer}, Source: ${source}`);
-      });
+      console.log('[Availability] Found bookings:', existingBookings.length);
 
-      // FIXED: Get operating hours for the correct day with proper hours
+      // Get operating hours for the correct day
       const dayOfWeek = dayStart.getDay();
-      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-      const dayName = days[dayOfWeek];
+      const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       
-      // FIXED: Strings Badminton Academy operating hours
-      // Weekday (Mon-Fri): 08:00-20:00, Weekend (Sat-Sun): 06:00-22:00
       let operatingHours;
-      if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-        // Monday to Friday
-        operatingHours = { open: '08:00', close: '20:00' };
+      if (facility.operatingHours) {
+        operatingHours = isWeekend 
+          ? facility.operatingHours.weekend 
+          : facility.operatingHours.weekday;
       } else {
-        // Saturday and Sunday
-        operatingHours = { open: '06:00', close: '22:00' };
+        // Fallback to default hours
+        operatingHours = isWeekend 
+          ? { start: '06:00', end: '22:00' }
+          : { start: '08:00', end: '20:00' };
       }
 
-      // console.log(`Operating hours for ${dayName}:`, operatingHours);
+      console.log('[Availability] Operating hours:', {
+        day: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
+        isWeekend,
+        hours: operatingHours
+      });
+
+      // Get courts from facility (supports 24 courts with multi-sport)
+      const courts = facility.courts || [];
+      
+      if (courts.length === 0) {
+        return res.status(500).json({
+          success: false,
+          message: 'No courts configured for this facility',
+          hint: 'Please configure courts in the facility settings'
+        });
+      }
+
+      console.log('[Availability] Courts configured:', {
+        total: courts.length,
+        badminton: courts.filter(c => c.sport === 'Badminton').length,
+        pickleball: courts.filter(c => c.sport === 'Pickleball').length
+      });
 
       // Generate availability for each court
       const availability = {};
       
-      // FIXED: Strings Badminton Academy has 10 courts (not 2)
-      const courts = [];
-      for (let i = 1; i <= 10; i++) {
-        courts.push({ id: i, name: `Court ${i}`, sport: 'Badminton' });
-      }
-
       courts.forEach(court => {
+        if (!court.active) {
+          console.log(`[Availability] Skipping inactive court: ${court.name}`);
+          return;
+        }
+
         availability[court.id] = {};
         
-        // console.log(`[Production MongoDB] Generating availability for Court ${court.id}:`);
-        
         // Parse operating hours
-        const openHour = parseInt(operatingHours.open.split(':')[0]);
-        const closeHour = parseInt(operatingHours.close.split(':')[0]);
+        const openHour = parseInt(operatingHours.start.split(':')[0]);
+        const closeHour = parseInt(operatingHours.end.split(':')[0]);
         
         // Generate time slots within operating hours
         for (let hour = openHour; hour < closeHour; hour++) {
@@ -144,9 +162,9 @@ const productionAvailabilityController = {
             // Match court
             let courtMatch = false;
             if (booking.fieldName) {
-              // Mobile format: "Court 1", "Court 2", etc.
-              const courtNum = parseInt(booking.fieldName.replace('Court ', ''));
-              courtMatch = courtNum === court.id;
+              // Mobile format: "Court 1", "Court P1", etc.
+              const bookingCourtName = booking.fieldName;
+              courtMatch = bookingCourtName === court.name;
             } else if (booking.courtNumber) {
               // Old web format
               courtMatch = booking.courtNumber === court.id;
@@ -162,37 +180,34 @@ const productionAvailabilityController = {
               bookingStartHour = booking.startTime.getHours();
               bookingEndHour = booking.endTime.getHours();
             } else if (typeof booking.startTime === 'string' && typeof booking.endTime === 'string') {
-              // Old web format with time strings
+              // Web format with time strings
               bookingStartHour = parseInt(booking.startTime.split(':')[0]);
               bookingEndHour = parseInt(booking.endTime.split(':')[0]);
+            } else if (booking.startTimeString && booking.endTimeString) {
+              // Vendor format with string fields
+              bookingStartHour = parseInt(booking.startTimeString.split(':')[0]);
+              bookingEndHour = parseInt(booking.endTimeString.split(':')[0]);
             } else {
               return false;
             }
             
             // Check if this time slot conflicts with the booking
-            const conflicts = hour >= bookingStartHour && hour < bookingEndHour;
-            
-            if (conflicts) {
-              // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} conflicts with booking: ${bookingStartHour}:00-${bookingEndHour}:00 (${booking.source || 'mobile'})`);
-            }
-            
-            return conflicts;
+            return hour >= bookingStartHour && hour < bookingEndHour;
           });
           
           // Slot is available if no conflicts
           const isAvailable = conflictingBookings.length === 0;
           availability[court.id][timeSlot] = isAvailable;
-          
-          if (!isAvailable) {
-            const conflictingSources = conflictingBookings.map(b => b.source || 'mobile').join(', ');
-            // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is UNAVAILABLE (${conflictingBookings.length} conflicts from: ${conflictingSources})`);
-          } else {
-            // console.log(`[Production MongoDB] Court ${court.id} at ${timeSlot} is AVAILABLE`);
-          }
         }
       });
 
-      // console.log('[Production MongoDB] Availability generation complete');
+      console.log('[Availability] Generation complete:', {
+        courtsProcessed: Object.keys(availability).length,
+        totalSlots: Object.values(availability).reduce((sum, slots) => sum + Object.keys(slots).length, 0),
+        availableSlots: Object.values(availability).reduce((sum, slots) => {
+          return sum + Object.values(slots).filter(v => v === true).length;
+        }, 0)
+      });
 
       // Add no-cache headers
       res.set({
@@ -205,60 +220,54 @@ const productionAvailabilityController = {
         success: true,
         data: {
           facility: {
-            id: venue._id,
-            name: venue.fullName,
-            address: venue.getFullAddress ? venue.getFullAddress() : 'Address not available',
-            pricePerHour: venue.pricePerHour || 1.00,
+            id: facility._id,
+            slug: facility.slug,
+            name: facility.name,
+            venueId: venueId.toString(),
+            totalCourts: courts.length,
+            courts: courts.map(court => ({
+              id: court.id,
+              name: court.name,
+              sport: court.sport,
+              active: court.active
+            })),
             operatingHours: operatingHours,
-            totalCourts: 10
+            pricing: {
+              badminton: 25.00,
+              pickleball: 30.00,
+              serviceFeePercentage: facility.pricing?.serviceFeePercentage || 1.0,
+              taxPercentage: facility.pricing?.taxPercentage || 13.0,
+              currency: facility.pricing?.currency || 'CAD'
+            }
           },
           date,
           availability,
           debug: {
             bookingsFound: existingBookings.length,
             courtsGenerated: Object.keys(availability).length,
-            totalSlots: Object.keys(availability).reduce((total, courtId) => {
-              return total + Object.keys(availability[courtId]).length;
-            }, 0),
-            availableSlots: Object.keys(availability).reduce((total, courtId) => {
-              return total + Object.values(availability[courtId]).filter(available => available === true).length;
+            totalSlots: Object.values(availability).reduce((sum, slots) => sum + Object.keys(slots).length, 0),
+            availableSlots: Object.values(availability).reduce((sum, slots) => {
+              return sum + Object.values(slots).filter(v => v === true).length;
             }, 0),
             bookingsBySource: {
               web: existingBookings.filter(b => b.source === 'web').length,
-              mobile: existingBookings.filter(b => !b.source || b.source !== 'web').length
+              mobile: existingBookings.filter(b => !b.source || b.source !== 'web').length,
+              vendor: existingBookings.filter(b => b.isBookedByVendor === true).length
             },
             database: 'Production MongoDB',
-            venue: venue.fullName,
             operatingHours: operatingHours,
-            dayOfWeek: dayName,
-            searchPeriod: {
-              start: dayStart.toISOString(),
-              end: dayEnd.toISOString()
-            },
-            version: 'production-mongodb-objectid-compatible-v3-10courts',
+            dayOfWeek: ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][dayOfWeek],
+            version: 'multi-sport-24-courts-v1',
             timestamp: new Date().toISOString()
           }
         },
         timestamp: new Date().toISOString()
       };
 
-      // console.log('[Production MongoDB] Sending response:', {
-      //  success: response.success,
-      //  venue: response.data.facility.name,
-      //  courtsGenerated: response.data.debug.courtsGenerated,
-      //  totalSlots: response.data.debug.totalSlots,
-      //  availableSlots: response.data.debug.availableSlots,
-      //  bookingsFound: response.data.debug.bookingsFound,
-      //  webBookings: response.data.debug.bookingsBySource.web,
-      //  mobileBookings: response.data.debug.bookingsBySource.mobile,
-      //  database: 'Production MongoDB'
-      // });
-
       res.json(response);
 
     } catch (error) {
-      console.error('[Production MongoDB] Unexpected error in getAvailability:', error);
-      console.error('[Production MongoDB] Error stack:', error.stack);
+      console.error('[Availability] Error:', error);
       
       res.status(500).json({
         success: false,

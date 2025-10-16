@@ -4,7 +4,6 @@ const express = require('express');
 const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const TenantMiddleware = require('./src/middleware/tenant');
-const tenantAvailabilityController = require('./src/controllers/mongodb/tenantAvailabilityController');
 const Facility = require('./src/models/mongodb/Facility');
 const stripeWebhookController = require('./src/controllers/mongodb/stripeWebhookController');
 // Around line 10, add:
@@ -159,12 +158,12 @@ app.get('/health', (req, res) => {
 // Availability routes
 app.get('/api/v1/availability', 
   TenantMiddleware.withDefaultTenant,
-  tenantAvailabilityController.getAvailability
+  productionAvailabilityController.getAvailability
 );
 
 app.get('/api/v1/tenant/availability', 
   TenantMiddleware.resolveTenant,
-  tenantAvailabilityController.getAvailability
+  productionAvailabilityController.getAvailability
 );
 
 // Cancellation routes
