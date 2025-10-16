@@ -177,7 +177,7 @@ const vendorBookingsController = {
         error: error.message
       });
     }
-  }
+  },
 
   /**
    * Get single booking details
