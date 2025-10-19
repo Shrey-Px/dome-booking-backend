@@ -477,11 +477,13 @@ const vendorBookingsController = {
       // Check for overlapping bookings
       const existing = await db.collection('Booking').findOne({
         venue: venueObjectId,
-        fieldName: courtName,
         $or: [
-          { bookingDate: date, startTime: startTime },
-          { bookingDateString: date, startTimeString: startTime }
+          { fieldName: courtName },
+          { fieldName: `Court ${courtNumber}` },
+          { courtNumber: courtNumber }
         ],
+        bookingDateString: date,
+        startTimeString: startTime,
         bookingStatus: { $in: ['Booked', 'Completed'] }
       });
 

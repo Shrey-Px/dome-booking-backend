@@ -1,13 +1,14 @@
+// update-facility-courts-fix.js
 require('dotenv').config();
 const { connectMongoDB } = require('./src/config/mongodb');
 const Facility = require('./src/models/mongodb/Facility');
 
-async function updateFacilityCourts() {
+async function fixCourtIds() {
   await connectMongoDB();
   
   const courts = [];
   
-  // Add 22 badminton courts
+  // Badminton courts 1-22
   for (let i = 1; i <= 22; i++) {
     courts.push({
       id: i,
@@ -17,33 +18,24 @@ async function updateFacilityCourts() {
     });
   }
   
-  // Add 2 pickleball courts
-  courts.push({
-    id: 23,
-    name: 'Court P1',
-    sport: 'Pickleball',
-    active: true
-  });
+  // Pickleball courts - Use NUMERIC IDs consistently
+  courts.push(
+    { id: 23, name: 'Court P1', sport: 'Pickleball', active: true },
+    { id: 24, name: 'Court P2', sport: 'Pickleball', active: true }
+  );
   
-  courts.push({
-    id: 24,
-    name: 'Court P2',
-    sport: 'Pickleball',
-    active: true
-  });
-  
-  const result = await Facility.updateOne(
+  await Facility.updateOne(
     { slug: 'vision-badminton' },
     { 
       $set: { 
-        courts: courts,
+        courts, 
         totalCourts: 24
       }
     }
   );
   
-  console.log('Updated facility with 24 courts:', result);
+  console.log('Fixed facility court IDs');
   process.exit(0);
 }
 
-updateFacilityCourts();
+fixCourtIds();

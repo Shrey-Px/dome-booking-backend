@@ -159,12 +159,28 @@ const productionAvailabilityController = {
           
           // Check for bookings that conflict with this time slot
           const conflictingBookings = existingBookings.filter(booking => {
-            // Match court
+            // Match court - handle both formats
             let courtMatch = false;
             if (booking.fieldName) {
               // Mobile format: "Court 1", "Court P1", etc.
-              const bookingCourtName = booking.fieldName;
-              courtMatch = bookingCourtName === court.name;
+              const bookingCourtName = booking.fieldName.toLowerCase();
+              const courtName = court.name.toLowerCase();
+
+              // Direct match
+              if (bookingCourtName === courtName) {
+                courtMatch = true;
+              }
+              // Handle "Court 23" matching "Court P1"
+              else if (court.id === 23 && (bookingCourtName === 'court 23' || bookingCourtName === 'court p1')) {
+                courtMatch = true;
+              }
+              else if (court.id === 24 && (bookingCourtName === 'court 24' || bookingCourtName === 'court p2')) {
+              courtMatch = true;
+              }
+              // Handle numeric court matching
+              else if (bookingCourtName === `court ${court.id}`) {
+                courtMatch = true;
+              }
             } else if (booking.courtNumber) {
               // Old web format
               courtMatch = booking.courtNumber === court.id;
