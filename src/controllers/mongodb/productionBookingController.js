@@ -505,23 +505,27 @@ const productionBookingController = {
       }
 
       // Send cancellation email
+      // Get facility information
+      const Facility = require('../../models/mongodb/Facility');
+      const facility = await Facility.findOne({ venueId: booking.venue });
+
       const emailData = {
-        customerName: booking.customerName,
-        customerEmail: booking.customerEmail,
-        facilityName: 'Vision Badminton Centre',
-        courtName: booking.fieldName,
-        bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
-        startTime: booking.startTimeString || booking.startTime || 'Unknown time',
-        endTime: booking.endTimeString || booking.endTime || 'Unknown time',
-        duration: 60,
-        courtRental: booking.price?.$numberDecimal || '25.00',
-        serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
-        discountAmount: booking.discount?.$numberDecimal || '0.00',
-        subtotal: booking.subtotal?.$numberDecimal || '25.25',
-        tax: booking.tax?.$numberDecimal || '3.28',
-        totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
-        bookingId: booking._id.toString(),
-        cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
+        customerName: booking.customerName,
+        customerEmail: booking.customerEmail,
+        facilityName: facility?.name || 'DOME Sports Facility',  // ✅ Dynamic
+        courtName: booking.fieldName,
+        bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
+        startTime: booking.startTimeString || booking.startTime || 'Unknown time',
+        endTime: booking.endTimeString || booking.endTime || 'Unknown time',
+        duration: 60,
+        courtRental: booking.price?.$numberDecimal || booking.totalPrice?.$numberDecimal || '25.00',  // ✅ Use actual price
+        serviceFee: booking.serviceFee?.$numberDecimal || '0.25',
+        discountAmount: booking.discount?.$numberDecimal || '0.00',
+        subtotal: booking.subtotal?.$numberDecimal || '25.25',
+        tax: booking.tax?.$numberDecimal || '3.28',
+        totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
+        bookingId: booking._id.toString(),
+        cancelUrl: `${process.env.FRONTEND_URL}/${facility?.slug || 'vision-badminton'}/cancel-booking?id=${booking._id.toString()}`  // ✅ Dynamic slug
       };
 
       try {
@@ -549,7 +553,7 @@ const productionBookingController = {
     }
   },
 
-  confirmPayment: async (req, res) => {
+confirmPayment: async (req, res) => {
     try {
       const { bookingId, paymentIntentId } = req.body;
       
@@ -599,11 +603,15 @@ const productionBookingController = {
         status: booking.paymentIntentStatus
       });
 
-      // Prepare email data
+      // ✅ GET FACILITY INFORMATION
+      const Facility = require('../../models/mongodb/Facility');
+      const facility = await Facility.findOne({ venueId: booking.venue });
+
+      // Prepare email data with dynamic facility info
       const emailData = {
         customerName: booking.customerName,
         customerEmail: booking.customerEmail,
-        facilityName: 'Vision Badminton Centre',
+        facilityName: facility?.name || 'DOME Sports Facility',  // ✅ Dynamic
         courtName: booking.fieldName,
         bookingDate: booking.bookingDateString || booking.bookingDate || 'Unknown date',
         startTime: booking.startTimeString || booking.startTime || 'Unknown time',
@@ -616,7 +624,7 @@ const productionBookingController = {
         tax: booking.tax?.$numberDecimal || '3.28',
         totalAmount: booking.totalPrice?.$numberDecimal || '28.53',
         bookingId: booking._id.toString(),
-        cancelUrl: `${process.env.FRONTEND_URL}/vision-badminton/cancel-booking?id=${booking._id.toString()}`
+        cancelUrl: `${process.env.FRONTEND_URL}/${facility?.slug || 'vision-badminton'}/cancel-booking?id=${booking._id.toString()}`  // ✅ Dynamic
       };
 
       console.log('[confirmPayment] Sending confirmation email to:', emailData.customerEmail);

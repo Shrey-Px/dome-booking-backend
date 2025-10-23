@@ -159,14 +159,14 @@ const productionAvailabilityController = {
           
           // Check for bookings that conflict with this time slot
           const conflictingBookings = existingBookings.filter(booking => {
-            // Match court - handle both formats
+            // Match court/lane - handle all formats
             let courtMatch = false;
             if (booking.fieldName) {
-              // Mobile format: "Court 1", "Court P1", etc.
+              // Mobile/vendor format: "Court 1", "Court P1", "Lane 1", etc.
               const bookingCourtName = booking.fieldName.toLowerCase();
               const courtName = court.name.toLowerCase();
 
-              // Direct match
+              // Direct match (handles "Lane 1" === "Lane 1")
               if (bookingCourtName === courtName) {
                 courtMatch = true;
               }
@@ -175,7 +175,11 @@ const productionAvailabilityController = {
                 courtMatch = true;
               }
               else if (court.id === 24 && (bookingCourtName === 'court 24' || bookingCourtName === 'court p2')) {
-              courtMatch = true;
+                courtMatch = true;
+              }
+              // ✅ NEW: Handle "Lane 1" matching court id 1 for cricket
+              else if (bookingCourtName === `lane ${court.id}`) {
+                courtMatch = true;
               }
               // Handle numeric court matching
               else if (bookingCourtName === `court ${court.id}`) {
@@ -187,7 +191,7 @@ const productionAvailabilityController = {
             }
             
             if (!courtMatch) return false;
-            
+                        
             // Check time overlap
             let bookingStartHour, bookingEndHour;
             
