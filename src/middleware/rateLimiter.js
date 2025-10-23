@@ -15,7 +15,7 @@ const generalLimiter = rateLimit({
 // Booking creation rate limiter (more restrictive)
 const bookingLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 20, // limit each IP to 10 booking attempts per 5 minutes
+  max: 10, // limit each IP to 10 booking attempts per 5 minutes
   message: {
     success: false,
     message: 'Too many booking attempts, please try again later.',
