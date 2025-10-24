@@ -159,38 +159,39 @@ const productionAvailabilityController = {
           
           // Check for bookings that conflict with this time slot
           const conflictingBookings = existingBookings.filter(booking => {
-            // Match court/lane - handle all formats
-            let courtMatch = false;
-            if (booking.fieldName) {
-              // Mobile/vendor format: "Court 1", "Court P1", "Lane 1", etc.
-              const bookingCourtName = booking.fieldName.toLowerCase();
-              const courtName = court.name.toLowerCase();
-
-              // Direct match (handles "Lane 1" === "Lane 1")
-              if (bookingCourtName === courtName) {
-                courtMatch = true;
-              }
-              // Handle "Court 23" matching "Court P1"
-              else if (court.id === 23 && (bookingCourtName === 'court 23' || bookingCourtName === 'court p1')) {
-                courtMatch = true;
-              }
-              else if (court.id === 24 && (bookingCourtName === 'court 24' || bookingCourtName === 'court p2')) {
-                courtMatch = true;
-              }
-              // ✅ NEW: Handle "Lane 1" matching court id 1 for cricket
-              else if (bookingCourtName === `lane ${court.id}`) {
-                courtMatch = true;
-              }
-              // Handle numeric court matching
-              else if (bookingCourtName === `court ${court.id}`) {
-                courtMatch = true;
-              }
-            } else if (booking.courtNumber) {
-              // Old web format
-              courtMatch = booking.courtNumber === court.id;
-            }
-            
-            if (!courtMatch) return false;
+            // Match court - handle all formats
+            let courtMatch = false;
+            
+            if (booking.fieldName) {
+              const bookingCourtName = booking.fieldName.toLowerCase().trim();
+              const courtName = court.name.toLowerCase().trim();
+              const courtId = court.id;
+              
+              // Direct name match
+              if (bookingCourtName === courtName) {
+                courtMatch = true;
+              }
+              // Handle numeric court IDs in fieldName (e.g., "Court 23" for court.id = 23)
+              else if (bookingCourtName === `court ${courtId}`) {
+                courtMatch = true;
+              }
+              // Handle Pickleball: "Court P1" === "Court 23" (id 23)
+              else if (courtId === 23 && (bookingCourtName === 'court p1' || bookingCourtName === 'court 23')) {
+                courtMatch = true;
+              }
+              else if (courtId === 24 && (bookingCourtName === 'court p2' || bookingCourtName === 'court 24')) {
+                courtMatch = true;
+              }
+              // Handle Cricket lanes (if using "Lane" naming)
+              else if (bookingCourtName === `lane ${courtId}`) {
+                courtMatch = true;
+              }
+            } else if (booking.courtNumber) {
+              // Old web format - numeric comparison
+              courtMatch = (booking.courtNumber === courtId);
+            }
+            
+            if (!courtMatch) return false;
                         
             // Check time overlap
             let bookingStartHour, bookingEndHour;
