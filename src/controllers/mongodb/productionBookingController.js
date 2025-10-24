@@ -185,6 +185,7 @@ const productionBookingController = {
         venue: new ObjectId(venueId),
         owner_id: "685a8e63a1e45e1eb270c9cb",
         bookingStatus: 'Booked',
+        sport: req.body.sport || court.sport, // Store the selected sport
         fieldName: `Court ${courtNumber}`,
         gameName: sport,
         
